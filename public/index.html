@@ -11,17 +11,17 @@
 
 <body>
     <nav>
-        <a href="#" class="active">Home</a>
-        <a href="#">Studios</a>
-        <a href="#">Interactive</a>
-        <a href="#">Contact</a>
+        <a href="index.html" class="active">Home</a>
+        <a href="studios.html" >Studios</a>
+        <a href="interactive.html">Interactive</a>
+        <a href="contact.html">Contact</a>
     </nav>
     <header>
         <div class="logo">Warehouse 231</div>
         <div class="tagline">Real Rooms. Real Vibe. Analog Sound.</div>
     </header>
     <div class="hero">
-        <h2>🎛️ Welcome to the Future of Recording</h2>
+        <h2>🎛️ Recording Elevated. Creation Amplified. 🎛️</h2>
         <div class="logo-container">
             <img src="images/w231Logo.jpg" alt="Warehouse 231 Logo" class="w231-logo dystopian" />
         </div>
@@ -29,9 +29,9 @@
             <img src="studio-images/studio1.jpg" class="slide active" alt="Studio Photo">
         </div>
         <p>
-            Step out of the algorithm and into the analog. <br>
-            Warehouse 231 is your antidote to bedroom AI sound—where real rooms, vintage gear, and studio magic collide
-            under neon and shadow.<br>
+            Create your masterpiece on real analog gear <br>
+            Warehouse 231 offers blend of vintage analog gear along with digital tools to capture your sound. A classic
+            API 2408 console is the centerpiece of the studio along with classic outboard gear and mics.
             <br>
             <span style="color:var(--accent)">Come get the <b>studio experience</b> you can feel.</span>
         </p>
@@ -41,9 +41,13 @@
             <span id="now-title"></span><br>
             <span id="now-artist"></span>
         </span>
+        <button id="play-btn" class="play-btn" aria-label="Play/Pause">⏸️</button>
         <button id="mute-btn" class="mute-btn" aria-label="Mute">
             🔊
         </button>
+        <input id="volume-slider" class="volume-slider" type="range" min="0" max="1" step="0.01" value="0.75"
+            title="Volume">
+
     </div>
     <audio id="bg-audio" preload="auto"></audio>
     <!-- Add more content/sections here as you develop! -->
@@ -113,6 +117,34 @@
         const nowPlaying = document.getElementById('now-playing');
         const muteBtn = document.getElementById('mute-btn');
 
+        const playBtn = document.getElementById('play-btn');
+
+        function updatePlayButton() {
+            if (audio.paused) {
+                playBtn.textContent = '▶️';
+                playBtn.classList.add('paused');
+            } else {
+                playBtn.textContent = '⏸️';
+                playBtn.classList.remove('paused');
+            }
+        }
+
+        playBtn.addEventListener('click', () => {
+            if (audio.paused) {
+                audio.play();
+            } else {
+                audio.pause();
+            }
+            updatePlayButton();
+        });
+
+        // Update icon when audio is played/paused from elsewhere
+        audio.addEventListener('play', updatePlayButton);
+        audio.addEventListener('pause', updatePlayButton);
+
+        // On page load, set correct icon
+        updatePlayButton();
+
         // Load track metadata from JSON
         fetch('audio/tracks.json')
             .then(res => res.json())
@@ -140,10 +172,22 @@
             playTrack((currentTrack + 1) % wavTracks.length);
         });
 
+        // Optional: keep slider in sync with mute/unmute
         muteBtn.addEventListener('click', () => {
             audio.muted = !audio.muted;
             muteBtn.classList.toggle('muted', audio.muted);
             muteBtn.textContent = audio.muted ? '🔇' : '🔊';
+            // Set slider to 0 if muted, restore to 0.75 if unmuted and slider is 0
+            if (audio.muted) {
+                volumeSlider.value = 0;
+            } else {
+                if (audio.volume === 0) {
+                    audio.volume = 0.75;
+                    volumeSlider.value = 0.75;
+                } else {
+                    volumeSlider.value = audio.volume;
+                }
+            }
         });
 
         audio.style.display = "none";
@@ -153,6 +197,25 @@
             audio.play();
             window.removeEventListener('click', autoPlayOnce);
         });
+
+        const volumeSlider = document.getElementById('volume-slider');
+
+        // Set initial volume to 75%
+        audio.volume = 0.75;
+
+        // Update volume when slider changes
+        volumeSlider.addEventListener('input', function () {
+            audio.volume = parseFloat(this.value);
+        });
+
+        function isMobile() {
+            return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        }
+        if (isMobile()) {
+            document.getElementById('volume-slider').style.display = 'none';
+        }
+
+
 
         // ==== END AUDIO
 
