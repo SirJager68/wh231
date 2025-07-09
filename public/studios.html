@@ -11,12 +11,23 @@
 </head>
 <body>
   <!-- Navigation Bar (copy from your main page) -->
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="studios.html" class="active">Studios</a>
-    <a href="interactive.html">Interactive</a>
-    <a href="contact.html">Contact</a>
-  </nav>
+    <nav>
+        <div class="nav-brand">
+            <!-- Optional: logo or site title -->
+        </div>
+        <button id="nav-toggle" class="nav-toggle" aria-label="Open Menu">
+            <span class="burger"></span>
+            <span class="burger"></span>
+            <span class="burger"></span>
+        </button>
+        <div id="nav-links" class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="studios.html" class="active">Studios</a>
+            <a href="interactive.html">Interactive</a>
+            <a href="clients.html">Clients</a>
+            <a href="contact.html">Contact</a>
+        </div>
+    </nav>
 
   <!-- Logo/Header -->
   <header>
@@ -29,23 +40,24 @@
   <main class="content-container">
     <!-- Main Studio Block -->
     <section class="studio-block">
-      <h2>Main Studio <span class="studio-tag">Flagship Room</span></h2>
+      <h2>Main Studio <span class="studio-tag"></span></h2>
       <div class="studio-gallery" id="main-studio-gallery">
-        <img src="studio-images/main1.jpg" alt="Main Studio" loading="lazy">
-        <img src="studio-images/main2.jpg" alt="Main Studio" loading="lazy">
+        <img src="studio-images/studio1.jpg" alt="Main Studio" loading="lazy" width="400">
+        <!-- <img src="studio-images/main2.jpg" alt="Main Studio" loading="lazy"> -->
         <!-- More images as needed -->
       </div>
       <div class="studio-desc">
         <p>
-          Step into our main control room and tracking space: perfectly tuned, loaded with analog and digital power, and designed for a future-forward recording experience.
+          Step into our main control room and tracking space designed by Wes Lachot. Inspired by classic studios such as Blackbird, Sunset Sound and Studio La Fabrique.
         </p>
         <ul class="gear-list">
-          <li>API 32-channel analog console</li>
-          <li>Vintage Neumann & Shure microphones</li>
-          <li>UA Apollo x16, UAD, Waves, SSL plugins</li>
-          <li>Classic outboard (1176, LA-2A, REDD, Distressor)</li>
-          <li>Custom isolation booth & live room</li>
-        </ul>
+  <li><strong>Console & Core:</strong> 32‑channel API console; API 1608 ins/outs; Apollo 32‑channel system</li>
+  <li><strong>Outboard & Plugins:</strong> UA, Waves, SSL , 1176, LA‑2A, Tube‑Tech CL 1B</li>
+  <li><strong>Monitoring:</strong> ATC SM25, Focal, NS‑10s monitors; x32 headphone mix system</li>
+  <li><strong>Microphones:</strong> Chandler REDD,Neumann U87 (×2), 414 (x2), Royer 121 (x2), FET47, KM184, SM7, SM58, SM57, 421(x4), M80</li>
+  <li><strong>Instruments & Amps:</strong> Yamaha studio drums & snares, supraphonic, TAMA Bell Brass; Fender P-bass, EVH Wolfgang, Gibson SG, Custom Jager Guitar, Yamaha acoustic; 1970 Marshall amps, Mesa Rectifier, Fender Deluxe, UA Ox, Fractal AX II/III</li>
+  <li><strong>Live Hall:</strong> Midas M32, floor monitors, 6 stereo IEM mixes</li>
+</ul>
       </div>
     </section>
 
@@ -53,24 +65,25 @@
     <section class="studio-block">
       <h2>Venue Area <span class="studio-tag">Live & Stream</span></h2>
       <div class="studio-gallery" id="venue-gallery">
-        <img src="studio-images/venue1.jpg" alt="Venue Area" loading="lazy">
-        <img src="studio-images/venue2.jpg" alt="Venue Area" loading="lazy">
+        <img src="studio-images/studio5.jpg" alt="Venue Area" loading="lazy" width="400">
+        <!-- <img src="studio-images/venue2.jpg" alt="Venue Area" loading="lazy"> -->
       </div>
       <div class="studio-desc">
         <p>
-          Host performances, stream live sessions, or throw a private party in our hybrid venue. Killer FOH sound, stage lighting, and full multi-cam video.
+          Shoot live video, stream live sessions, photo shoots and more. Killer FOH sound, stage lighting, and full multi-cam video.
         </p>
         <ul class="gear-list">
           <li>32-channel digital mixer</li>
           <li>Stage microphones and monitors</li>
           <li>Full lighting grid</li>
+          <li>28ft Video Screen</li>
           <li>HD video & streaming setup</li>
         </ul>
       </div>
     </section>
 
     <!-- Studio B Block -->
-    <section class="studio-block">
+    <!-- <section class="studio-block">
       <h2>Studio B <span class="studio-tag">Production Suite</span></h2>
       <div class="studio-gallery" id="studiob-gallery">
         <img src="studio-images/b1.jpg" alt="Studio B" loading="lazy">
@@ -86,7 +99,7 @@
           <li>Headphone amp system</li>
         </ul>
       </div>
-    </section>
+    </section> -->
 
     <!-- Add more spaces as needed! -->
   </main>
@@ -217,5 +230,22 @@
       window.removeEventListener('click', autoPlayOnce);
     });
   </script>
+
+      <!-- Optional: Add a call-to-action or scroll reveal animation! -->
+    <script>
+        const navToggle = document.getElementById('nav-toggle');
+        const navLinks = document.getElementById('nav-links');
+        navToggle.addEventListener('click', function () {
+            navLinks.classList.toggle('open');
+            navToggle.classList.toggle('open');
+        });
+        // Optional: close menu when link is clicked (mobile only)
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('open');
+                navToggle.classList.remove('open');
+            });
+        });
+    </script>
 </body>
 </html>

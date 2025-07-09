@@ -11,17 +11,28 @@
 
 <body>
     <nav>
-        <a href="index.html" class="active">Home</a>
-        <a href="studios.html" >Studios</a>
-        <a href="interactive.html">Interactive</a>
-        <a href="contact.html">Contact</a>
+        <div class="nav-brand">
+            <!-- Optional: logo or site title -->
+        </div>
+        <button id="nav-toggle" class="nav-toggle" aria-label="Open Menu">
+            <span class="burger"></span>
+            <span class="burger"></span>
+            <span class="burger"></span>
+        </button>
+        <div id="nav-links" class="nav-links">
+            <a href="index.html" class="active">Home</a>
+            <a href="studios.html">Studios</a>
+            <a href="interactive.html">Interactive</a>
+            <a href="clients.html">Clients</a>
+            <a href="contact.html">Contact</a>
+        </div>
     </nav>
     <header>
         <div class="logo">Warehouse 231</div>
         <div class="tagline">Real Rooms. Real Vibe. Analog Sound.</div>
     </header>
     <div class="hero">
-        <h2>🎛️ Recording Elevated. Creation Amplified. 🎛️</h2>
+        <h2>🎛️ Ready to Rock 🎛️</h2>
         <div class="logo-container">
             <img src="images/w231Logo.jpg" alt="Warehouse 231 Logo" class="w231-logo dystopian" />
         </div>
@@ -219,6 +230,23 @@
 
         // ==== END AUDIO
 
+    </script>
+
+    <script>
+        // === MOBILE BURGER SCRIPT
+        const navToggle = document.getElementById('nav-toggle');
+        const navLinks = document.getElementById('nav-links');
+        navToggle.addEventListener('click', function () {
+            navLinks.classList.toggle('open');
+            navToggle.classList.toggle('open');
+        });
+        // Optional: close menu when link is clicked (mobile only)
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('open');
+                navToggle.classList.remove('open');
+            });
+        });
     </script>
 
 </body>

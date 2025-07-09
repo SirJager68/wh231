@@ -20,16 +20,42 @@ body {
 }
 
 nav {
-    display: flex;
-    justify-content: center;
-    background: #181c23;
-    box-shadow: 0 2px 16px #000b, 0 0 10px #00ffe733 inset;
-    padding: 0.5rem 0;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #181c23;
+  box-shadow: 0 2px 16px #000b, 0 0 10px #00ffe733 inset;
+  padding: 0.5rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
-
+.nav-links {
+  display: flex;
+  gap: 1.2em;
+  transition: right 0.24s;
+}
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  margin-left: auto;
+  margin-right: 1.5em;
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 30;
+}
+.burger {
+  width: 24px;
+  height: 3px;
+  margin: 3px 0;
+  background: #00ffe7;
+  border-radius: 3px;
+  display: block;
+  transition: all 0.2s;
+  box-shadow: 0 0 6px #00ffe7cc;
+}
 nav a {
     color: var(--accent);
     text-decoration: none;
@@ -100,7 +126,45 @@ header {
   margin: 0 auto;
   padding: 0 2vw;
 }
-
+@media (max-width: 700px) {
+  nav {
+    justify-content: flex-start;
+    padding: 0.5em 0.5em;
+  }
+  .nav-links {
+    position: fixed;
+    top: 0; right: -100vw;
+    height: 100vh;
+    width: 66vw;
+    max-width: 280px;
+    background: #101318f5;
+    box-shadow: -2px 0 18px #00ffe777;
+    flex-direction: column;
+    gap: 2em;
+    align-items: flex-start;
+    padding: 4.5em 1.5em 1.5em 1.5em;
+    z-index: 22;
+    transition: right 0.33s cubic-bezier(.71,.06,.51,1.09);
+  }
+  .nav-links.open {
+    right: 0;
+  }
+  .nav-toggle {
+    display: flex;
+    position: relative;
+    z-index: 31;
+  }
+  /* Burger animation when open */
+  .nav-toggle.open .burger:nth-child(1) {
+    transform: translateY(6px) rotate(45deg);
+  }
+  .nav-toggle.open .burger:nth-child(2) {
+    opacity: 0;
+  }
+  .nav-toggle.open .burger:nth-child(3) {
+    transform: translateY(-6px) rotate(-45deg);
+  }
+}
 @media (max-width: 600px) {
     nav a {
         margin: 0 0.7rem;
@@ -501,3 +565,102 @@ header {
         width: 38px;
     }
 }
+
+.mini-client-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75em 1.2em;
+  margin: 2em auto 3em auto;
+  max-width: 780px;
+  justify-content: center;
+}
+
+.mini-client-card {
+  background: #1d222b;
+  color: #00ffe7;
+  border-radius: 1em;
+  padding: 0.4em 1.1em;
+  font-size: 1em;
+  font-family: 'Share Tech Mono', monospace;
+  box-shadow: 0 0 7px #00ffe733, 0 0 1.5px #ff004044;
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 2px #00ffe7cc;
+  margin-bottom: 0.3em;
+  transition: background 0.14s, color 0.14s, transform 0.14s;
+  cursor: default;
+  user-select: none;
+}
+.mini-client-card:hover {
+  background: #232531;
+  color: #ff0040;
+  transform: scale(1.04) rotate(-1deg);
+  box-shadow: 0 0 16px #ff004044, 0 0 8px #00ffe755;
+}
+@media (max-width: 700px) {
+  .mini-client-list { gap: 0.5em 0.7em; }
+  .mini-client-card { padding: 0.28em 0.7em; font-size: 0.96em; }
+}
+
+.contact-form {
+  max-width: 420px;
+  margin: 2em auto;
+  background: #181c2366;
+  padding: 2em 1.2em 1.2em 1.2em;
+  border-radius: 1em;
+  box-shadow: 0 2px 20px #00ffe744;
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+.contact-form input, .contact-form textarea {
+  font-size: 1.05em;
+  padding: 0.7em;
+  border-radius: 0.6em;
+  border: none;
+  background: #232531ee;
+  color: #00ffe7;
+  margin-bottom: 0.5em;
+  font-family: 'Share Tech Mono', monospace;
+  outline: none;
+  box-shadow: 0 0 3px #00ffe733;
+  transition: box-shadow 0.12s;
+}
+.contact-form input:focus, .contact-form textarea:focus {
+  box-shadow: 0 0 7px #ff004077;
+}
+.contact-form button {
+  font-size: 1.06em;
+  padding: 0.65em;
+  border-radius: 0.6em;
+  border: none;
+  background: linear-gradient(90deg, #00ffe7 60%, #ff0040 100%);
+  color: #181c23;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 0 7px #00ffe7cc;
+  letter-spacing: 0.08em;
+  transition: background 0.16s, color 0.12s;
+}
+#contact-status {
+  text-align: center;
+  margin-top: 0.6em;
+  font-size: 1em;
+}
+.contact-form select {
+  font-size: 1.05em;
+  padding: 0.7em;
+  border-radius: 0.6em;
+  border: none;
+  background: #232531ee;
+  color: #00ffe7;
+  margin-bottom: 0.5em;
+  font-family: 'Share Tech Mono', monospace;
+  outline: none;
+  box-shadow: 0 0 3px #00ffe733;
+  transition: box-shadow 0.12s;
+}
+.contact-form select:focus {
+  box-shadow: 0 0 7px #ff004077;
+}
+
+
