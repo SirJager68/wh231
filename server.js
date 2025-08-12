@@ -28,19 +28,17 @@ if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
 // Login with Lightspeed
 // =========================
 app.get('/login', (req, res) => {
-  // Retail R-Series scopes for sales reporting
-  const scopes = 'employee:all item:all sale:all';
-
-  const authURL =
-    `https://cloud.lightspeedapp.com/oauth/authorize.php` +
+  const scopes = 'sale:read item:read employee:read';
+  const authURL = `https://cloud.lightspeedapp.com/oauth/authorize.php` +
     `?response_type=code` +
     `&client_id=${CLIENT_ID}` +
     `&scope=${encodeURIComponent(scopes)}` +
     `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
-
+  
   console.log("OAuth Login URL:", authURL);
   res.redirect(authURL);
 });
+
 
 // =========================
 // OAuth Callback
