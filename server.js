@@ -107,49 +107,62 @@ app.get('/callback', async (req, res) => {
 // =========================
 // Weekly Sales Example - Updated for V3
 // =========================
-app.get('/api/weekly-sales', async (req, res) => {
-  if (!req.session.token) {
-    return res.status(401).send({ error: 'Not authenticated with Lightspeed' });
-  }
-
+app.get('/api/yesterday-sales', async (req, res) => {
   try {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 7);
-    const startStr = startDate.toISOString();
+    const accountID = req.session.accountID;
+    const accessToken = req.session.accessToken;
 
-    // Lightspeed expects UTC offset in timestamp
-    const url = `https://api.lightspeedapp.com/API/V3/Account/${req.session.accountID}/Sale.json?timeStamp=%3E%3D,${encodeURIComponent(startStr)}`;
+    // Get yesterday's UTC range
+    const now = new Date();
+    const start = new Date(now);
+    start.setUTCDate(now.getUTCDate() - 1);
+    start.setUTCHours(0, 0, 0, 0);
 
-    const salesRes = await fetch(url, {
+    const end = new Date(start);
+    end.setUTCHours(23, 59, 59, 999);
+
+    const startStr = start.toISOString().split('.')[0] + '+00:00';
+    const endStr = end.toISOString().split('.')[0] + '+00:00';
+
+    // Encode for Lightspeed's operator format
+    const timeFilter = `completeTime=%3E%3C,${encodeURIComponent(startStr)},${encodeURIComponent(endStr)}`;
+
+    // Query only completed sales
+    const url = `https://api.lightspeedapp.com/API/V3/Account/${accountID}/Sale.json?${timeFilter}&completed=true&archived=false&voided=false`;
+
+    const response = await fetch(url, {
       headers: {
-        Authorization: `Bearer ${req.session.token}`,
+        Authorization: `Bearer ${accessToken}`,
         Accept: 'application/json'
       }
     });
-    const data = await salesRes.json();
 
-    let gross = 0;
-    let cogs = 0;
+    const data = await response.json();
 
-    if (Array.isArray(data.Sale)) {
-      for (const sale of data.Sale) {
-        gross += parseFloat(sale.calcTotal || 0);
-        cogs += parseFloat(sale.calcAvgCost || 0);
-      }
-    } else if (data.Sale) {
-      // Handle case where only one sale is returned
-      gross += parseFloat(data.Sale.calcTotal || 0);
-      cogs += parseFloat(data.Sale.calcAvgCost || 0);
-    }
+    let gross = 0, cogs = 0;
+
+    // Handle single object vs array
+    const sales = Array.isArray(data.Sale) ? data.Sale : (data.Sale ? [data.Sale] : []);
+
+    sales.forEach(sale => {
+      const grossAmt = parseFloat(sale.calcTotal || 0);
+      const costAmt = sale.calcFIFOCost !== undefined
+        ? parseFloat(sale.calcFIFOCost || 0)
+        : parseFloat(sale.calcAvgCost || 0);
+
+      gross += grossAmt;
+      cogs += costAmt;
+    });
 
     const profit = gross - cogs;
 
-    res.json({ gross, cogs, profit });
+    res.json({ gross, cogs, profit, count: sales.length, date: startStr.split('T')[0] });
   } catch (err) {
-    console.error('Weekly Sales Error:', err);
-    res.status(500).send({ error: 'Failed to fetch weekly sales' });
+    console.error('Error fetching yesterday sales:', err);
+    res.status(500).json({ error: 'Failed to fetch yesterday sales' });
   }
 });
+
 
 
 
