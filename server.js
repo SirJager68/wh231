@@ -28,7 +28,7 @@ if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
 // Login with Lightspeed
 // =========================
 app.get('/login', (req, res) => {
-  const scopes = 'employee:reports';
+  const scopes = 'employee:reports+employee:inventory_read+employee:product_cost';
   const authURL =
     `https://cloud.lightspeedapp.com/oauth/authorize.php` +
     `?response_type=code` +
