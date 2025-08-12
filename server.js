@@ -34,6 +34,8 @@ app.get('/login', (req, res) => {
     `?response_type=code` +
     `&client_id=${CLIENT_ID}` +
     `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+  
+  console.log("OAuth Login URL:", authURL);
   res.redirect(authURL);
 });
 
