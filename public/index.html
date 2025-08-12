@@ -11,7 +11,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-fetch('/api/weekly-sales')
+fetch('/api/yesterday-sales')
   .then(res => res.json())
   .then(data => {
     // Example assumes data.ReportSalesTotals.rows is an array
