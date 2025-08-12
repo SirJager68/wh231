@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive | Warehouse 231</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* YouTube Holder with Glitch/Neon Border */
+    .youtube-embed-holder {
+      max-width: 700px;
+      margin: 2.5em auto 2em auto;
+      background: #181c23cc;
+      border: 3.5px solid #00ffe7;
+      border-radius: 1.3em;
+      box-shadow: 0 0 28px #00ffe7cc, 0 0 16px #ff004055;
+      padding: 1em 1em 1.2em 1em;
+      overflow: hidden;
+      position: relative;
+      transition: box-shadow 0.22s, border-color 0.18s;
+      animation: borderGlow 2.5s infinite alternate;
+    }
+    @keyframes borderGlow {
+      0%   { border-color: #00ffe7; }
+      50%  { border-color: #ff0040; }
+      100% { border-color: #00ffe7; }
+    }
+    .youtube-embed-holder iframe {
+      display: block;
+      width: 100%;
+      min-height: 340px;
+      border: none;
+      border-radius: 1em;
+      box-shadow: 0 0 14px #00ffe777;
+      background: #000;
+    }
+
+.game-links-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.2em 2.2em;
+  justify-content: center;
+  margin: 3em auto 2em auto;
+  max-width: 1100px;
+}
+
+.game-link-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 150px;
+  max-width: 220px;
+  background: repeating-linear-gradient(135deg, #181c23 0 8px, #232531 8px 16px);
+  border: 2.7px solid #00ffe7;
+  border-radius: 1.3em 0.4em 1.6em 0.5em;
+  box-shadow: 0 0 30px #00ffe7bb, 0 0 12px #ff004044;
+  text-decoration: none;
+  padding: 1.1em 1.2em 1.35em 1.2em;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.16s, box-shadow 0.15s, transform 0.13s;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.game-link-card::before {
+  content: "";
+  display: block;
+  position: absolute;
+  inset: 0;
+  border-radius: 1.3em 0.4em 1.6em 0.5em;
+  pointer-events: none;
+  opacity: 0.13;
+  background: repeating-linear-gradient(
+    to bottom, 
+    #00ffe755 0px, 
+    #ff004055 2.5px, 
+    transparent 3px, 
+    transparent 7px
+  );
+  z-index: 2;
+}
+
+.game-link-card:hover, .game-link-card:focus {
+  border-color: #ff0040;
+  box-shadow: 0 0 55px #ff004099, 0 0 18px #00ffe799;
+  transform: scale(1.03) rotate(-0.5deg);
+}
+.game-link-card:hover .game-title,
+.game-link-card:focus .game-title {
+  color: #ff0040;
+  text-shadow: 0 0 7px #ff004099;
+}
+.game-link-card:hover .game-img-wrap::after {
+  opacity: 0.25;
+}
+
+.game-img-wrap {
+  width: 80px;
+  height: 80px;
+  border-radius: 0.8em 0.2em 1.1em 0.3em;
+  background: #101318;
+  margin-bottom: 1em;
+  box-shadow: 0 0 12px #00ffe7bb;
+  position: relative;
+  overflow: hidden;
+  z-index: 3;
+}
+.game-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  filter: brightness(1.1) contrast(1.15);
+  z-index: 4;
+}
+/* Subtle scanlines on game image hover */
+.game-img-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  background: repeating-linear-gradient(
+    to bottom, 
+    rgba(255,255,255,0.07) 0px, 
+    rgba(0,0,0,0.11) 2.2px, 
+    transparent 3px, 
+    transparent 7px
+  );
+  opacity: 0.08;
+  transition: opacity 0.17s;
+}
+
+.game-title {
+  font-size: 1.11em;
+  font-family: 'Share Tech Mono', monospace;
+  font-weight: bold;
+  color: #00ffe7;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.24em;
+  text-shadow: 0 0 2px #00ffe7dd;
+  z-index: 5;
+}
+.game-sub {
+  font-size: 0.98em;
+  color: #bee4e0;
+  opacity: 0.8;
+  margin-bottom: 0.1em;
+  z-index: 5;
+  font-family: inherit;
+}
+
+@media (max-width: 700px) {
+  .game-links-section { gap: 1em 0.6em; }
+  .game-link-card { padding: 0.7em 0.4em 1em 0.4em; min-width: 100px; max-width: 90vw;}
+  .game-img-wrap { width: 60px; height: 60px; margin-bottom: 0.55em; }
+}
+
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="studios.html">Studios</a>
+    <a href="interactive.html" class="active">Interactive</a>
+    <a href="clients.html">Clients</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+
+  <h2 style="text-align:center;color:#00ffe7;margin-top:2em;letter-spacing:0.08em;">Get Interactive!</h2>
+
+  <!-- YouTube Embed (channel, playlist, or featured video) -->
+  <div class="youtube-embed-holder">
+    <!-- Replace the src with your YouTube channel, playlist, or a featured video! -->
+    <iframe src="https://youtube.com/@warehouse-231?si=Dv9TnbNOgIyMuf6Y" allowfullscreen></iframe>
+    <!-- OR: To feature your channel's uploads, use your actual channel/playlist/user -->
+    <!-- <iframe src="https://www.youtube.com/embed/videoseries?list=PL...."></iframe> -->
+    <!-- <iframe src="https://www.youtube.com/embed/VIDEO_ID"></iframe> -->
+  </div>
+
+  <!-- Game Links Section -->
+<div class="game-links-section">
+  <a href="https://warehouse231.com/demaroids" class="game-link-card" target="_blank">
+    <div class="game-img-wrap">
+      <img src="images/demaroids-thumb.jpg" alt="Demaroids" class="game-img" />
+    </div>
+    <div class="game-title">Demaroids</div>
+    <div class="game-sub">Arcade Mayhem</div>
+  </a>
+  <a href="https://warehouse231.com/electrikfootball" class="game-link-card" target="_blank">
+    <div class="game-img-wrap">
+      <img src="images/electrikfootball-thumb.jpg" alt="ElectriK Football" class="game-img" />
+    </div>
+    <div class="game-title">ElectriK Football</div>
+    <div class="game-sub">Retro Vibes</div>
+  </a>
+  <a href="https://warehouse231.com/cyberslots" class="game-link-card" target="_blank">
+    <div class="game-img-wrap">
+      <img src="images/cyberslots-thumb.jpg" alt="CyberSlots" class="game-img" />
+    </div>
+    <div class="game-title">CyberSlots</div>
+    <div class="game-sub">Slot Future</div>
+  </a>
+  <!-- Add more games as needed -->
+</div>
+
+
+  <!-- You can add a call-to-action, more embeds, or other interactive widgets here -->
+</body>
+</html>

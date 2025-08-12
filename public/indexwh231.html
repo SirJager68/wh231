@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Warehouse 231 Studios</title>
+    <link rel="stylesheet" href="styles.css">
+
+</head>
+
+<body>
+    <nav>
+        <div class="nav-brand">
+            <!-- Optional: logo or site title -->
+        </div>
+        <button id="nav-toggle" class="nav-toggle" aria-label="Open Menu">
+            <span class="burger"></span>
+            <span class="burger"></span>
+            <span class="burger"></span>
+        </button>
+        <div id="nav-links" class="nav-links">
+            <a href="index.html" class="active">Home</a>
+            <a href="studios.html">Studios</a>
+            <a href="interactive.html">Interactive</a>
+            <a href="clients.html">Clients</a>
+            <a href="contact.html">Contact</a>
+        </div>
+    </nav>
+    <header>
+        <div class="logo">Warehouse 231</div>
+        <div class="tagline">Real Rooms. Real Vibe. Analog Sound.</div>
+    </header>
+    <div class="hero">
+        <h2>🎛️ Ready to Rock 🎛️</h2>
+        <div class="logo-container">
+            <img src="images/w231Logo.jpg" alt="Warehouse 231 Logo" class="w231-logo dystopian" />
+        </div>
+        <div id="studio-slideshow" class="slideshow">
+            <img src="studio-images/studio1.jpg" class="slide active" alt="Studio Photo">
+        </div>
+        <p>
+            Create your masterpiece on real analog gear <br>
+            Warehouse 231 offers blend of vintage analog gear along with digital tools to capture your sound. A classic
+            API 2408 console is the centerpiece of the studio along with classic outboard gear and mics.
+            <br>
+            <span style="color:var(--accent)">Come get the <b>studio experience</b> you can feel.</span>
+        </p>
+    </div>
+    <div id="audio-controls" class="floating-audio-controls">
+        <span id="now-playing" class="now-playing">
+            <span id="now-title"></span><br>
+            <span id="now-artist"></span>
+        </span>
+        <button id="play-btn" class="play-btn" aria-label="Play/Pause">⏸️</button>
+        <button id="mute-btn" class="mute-btn" aria-label="Mute">
+            🔊
+        </button>
+        <input id="volume-slider" class="volume-slider" type="range" min="0" max="1" step="0.01" value="0.75"
+            title="Volume">
+
+    </div>
+    <audio id="bg-audio" preload="auto"></audio>
+    <!-- Add more content/sections here as you develop! -->
+    <script>
+
+        // ===== HOOME PAGE SLIDE SHOW
+        let studioImages = [];
+        let current = 0;
+        const slideshow = document.getElementById('studio-slideshow');
+        const img = slideshow.querySelector('.slide');
+
+        function showNextSlide() {
+            if (studioImages.length === 0) return;
+
+            // Clone the current img to animate it out
+            const oldImg = img.cloneNode();
+            oldImg.src = img.src;
+            oldImg.classList.remove('active');
+            oldImg.classList.add('glitch-out');
+            slideshow.appendChild(oldImg);
+
+            // Switch image after glitch out
+            setTimeout(() => {
+                current = (current + 1) % studioImages.length;
+                img.src = 'studio-images/' + studioImages[current];
+                img.classList.add('active');
+            }, 350); // Halfway through glitch-out
+
+            // Remove glitch-out image after animation
+            setTimeout(() => {
+                if (oldImg && oldImg.parentNode) oldImg.parentNode.removeChild(oldImg);
+                img.classList.remove('active'); // Let glitch-in happen after glitch-out is done
+                void img.offsetWidth; // force reflow to restart animation
+                img.classList.add('active');
+            }, 600); // End of glitch-out
+        }
+
+        // Fetch image filenames from server
+        fetch('/api/studio-images')
+            .then(res => res.json())
+            .then(files => {
+                studioImages = files;
+                if (studioImages.length > 0) {
+                    img.src = 'studio-images/' + studioImages[0];
+                    img.style.display = '';
+                    img.classList.add('active');
+                    setInterval(showNextSlide, 2500);
+                } else {
+                    slideshow.innerHTML = '<p style="text-align:center;color:#bbb;">No images found.</p>';
+                }
+            })
+            .catch(() => {
+                slideshow.innerHTML = '<p style="text-align:center;color:#f44;">Error loading images.</p>';
+            });
+
+
+
+
+        // ===== END HOME SLIDE SHOW
+
+        // ==== AUDIO
+
+        let wavTracks = [];
+        let audio = document.getElementById('bg-audio');
+        let currentTrack = 0;
+
+        const nowPlaying = document.getElementById('now-playing');
+        const muteBtn = document.getElementById('mute-btn');
+
+        const playBtn = document.getElementById('play-btn');
+
+        function updatePlayButton() {
+            if (audio.paused) {
+                playBtn.textContent = '▶️';
+                playBtn.classList.add('paused');
+            } else {
+                playBtn.textContent = '⏸️';
+                playBtn.classList.remove('paused');
+            }
+        }
+
+        playBtn.addEventListener('click', () => {
+            if (audio.paused) {
+                audio.play();
+            } else {
+                audio.pause();
+            }
+            updatePlayButton();
+        });
+
+        // Update icon when audio is played/paused from elsewhere
+        audio.addEventListener('play', updatePlayButton);
+        audio.addEventListener('pause', updatePlayButton);
+
+        // On page load, set correct icon
+        updatePlayButton();
+
+        // Load track metadata from JSON
+        fetch('audio/tracks.json')
+            .then(res => res.json())
+            .then(tracks => {
+                wavTracks = tracks;
+                if (wavTracks.length > 0) {
+                    playTrack(0);
+                }
+            });
+
+        function playTrack(index) {
+            if (!wavTracks.length) return;
+            currentTrack = index % wavTracks.length;
+            audio.src = 'audio/' + wavTracks[currentTrack].file;
+
+            // Update Now Playing display (two lines)
+            document.getElementById('now-title').textContent = wavTracks[currentTrack].title;
+            document.getElementById('now-artist').textContent = wavTracks[currentTrack].artist || "";
+
+            audio.play();
+        }
+
+
+        audio.addEventListener('ended', function () {
+            playTrack((currentTrack + 1) % wavTracks.length);
+        });
+
+        // Optional: keep slider in sync with mute/unmute
+        muteBtn.addEventListener('click', () => {
+            audio.muted = !audio.muted;
+            muteBtn.classList.toggle('muted', audio.muted);
+            muteBtn.textContent = audio.muted ? '🔇' : '🔊';
+            // Set slider to 0 if muted, restore to 0.75 if unmuted and slider is 0
+            if (audio.muted) {
+                volumeSlider.value = 0;
+            } else {
+                if (audio.volume === 0) {
+                    audio.volume = 0.75;
+                    volumeSlider.value = 0.75;
+                } else {
+                    volumeSlider.value = audio.volume;
+                }
+            }
+        });
+
+        audio.style.display = "none";
+
+        // For browsers that block auto-play
+        window.addEventListener('click', function autoPlayOnce() {
+            audio.play();
+            window.removeEventListener('click', autoPlayOnce);
+        });
+
+        const volumeSlider = document.getElementById('volume-slider');
+
+        // Set initial volume to 75%
+        audio.volume = 0.75;
+
+        // Update volume when slider changes
+        volumeSlider.addEventListener('input', function () {
+            audio.volume = parseFloat(this.value);
+        });
+
+        function isMobile() {
+            return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        }
+        if (isMobile()) {
+            document.getElementById('volume-slider').style.display = 'none';
+        }
+
+
+
+        // ==== END AUDIO
+
+    </script>
+
+    <script>
+        // === MOBILE BURGER SCRIPT
+        const navToggle = document.getElementById('nav-toggle');
+        const navLinks = document.getElementById('nav-links');
+        navToggle.addEventListener('click', function () {
+            navLinks.classList.toggle('open');
+            navToggle.classList.toggle('open');
+        });
+        // Optional: close menu when link is clicked (mobile only)
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('open');
+                navToggle.classList.remove('open');
+            });
+        });
+    </script>
+
+</body>
+
+</html>

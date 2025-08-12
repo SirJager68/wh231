@@ -1,87 +1,66 @@
+// server.js
 const express = require('express');
-const path = require('path');
-require('dotenv').config();
+const fetch = require('node-fetch');
+const session = require('express-session');
+const dotenv = require('dotenv');
 
-
+dotenv.config();
 const app = express();
-const PORT = process.env.PORT || 3231;
+app.use(express.static('public'));
+app.use(session({ secret: 'lightspeedsecret', resave: false, saveUninitialized: true }));
 
-app.use(express.static(path.join(__dirname, 'public')));
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const REDIRECT_URI = process.env.REDIRECT_URI;
 
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'Warehouse 231 server running.' });
+app.get('/login', (req, res) => {
+    const authURL = `https://cloud.lightspeedapp.com/oauth/authorize.php?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+    res.redirect(authURL);
 });
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+app.get('/callback', async (req, res) => {
+    const code = req.query.code;
 
-
-// === SLIDE SHOW
-const fs = require('fs');
-const imagesDir = path.join(__dirname, 'public', 'studio-images');
-
-app.get('/api/studio-images', (req, res) => {
-    fs.readdir(imagesDir, (err, files) => {
-        if (err) return res.status(500).json({ error: 'Unable to list images' });
-        // filter to jpg/png
-        const images = files.filter(file =>
-            /\.(jpg|jpeg|png|gif)$/i.test(file)
-        );
-        res.json(images);
+    const tokenRes = await fetch('https://cloud.lightspeedapp.com/oauth/access_token.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            grant_type: 'authorization_code',
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
+            code: code,
+            redirect_uri: REDIRECT_URI
+        })
     });
+
+    const tokenData = await tokenRes.json();
+    req.session.token = tokenData.access_token;
+    req.session.accountID = tokenData.account_id;
+
+    res.redirect('/');
 });
-// === END SLIDE SHOW
 
-// === add audio
-const audioDir = path.join(__dirname, 'public', 'audio');
+app.get('/api/weekly-sales', async (req, res) => {
+    if (!req.session.token) return res.status(401).send({ error: 'Not authenticated' });
 
-app.get('/api/audio-files', (req, res) => {
-    fs.readdir(audioDir, (err, files) => {
-        if (err) return res.status(500).json({ error: 'Unable to list audio files' });
-        const wavs = files.filter(file => /\.(wav)$/i.test(file));
-        res.json(wavs);
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+    const startStr = startDate.toISOString();
+
+    const url = `https://api.lightspeedapp.com/API/Account/${req.session.accountID}/Sale.json?timeStamp=><${startStr}`;
+    const salesRes = await fetch(url, {
+        headers: { Authorization: `Bearer ${req.session.token}` }
     });
-});
-// === END AUDIO
+    const salesData = await salesRes.json();
 
-
-// === MAIL SERVER
-const nodemailer = require('nodemailer');
-
-// Replace with your email service/provider details!
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.SMTP_USER,    // 'jagerbb@gmail.com'
-        pass: process.env.SMTP_PASS     // 16-char App Password from .env
+    let gross = 0, cogs = 0;
+    for (const sale of salesData.Sale || []) {
+        gross += parseFloat(sale.total || 0);
+        // In a full version, we’d fetch SaleLine with Item.averageCost to calc COGS
     }
+
+    const profit = gross - cogs;
+    res.json({ gross, cogs, profit });
 });
 
-app.post('/api/contact', express.json(), async (req, res) => {
-  console.log('Received contact form submission:', req.body);
-  const { name, email, subject, message } = req.body;
-  if(!name || !email || !subject || !message) return res.json({ success: false, error: "All fields required." });
-  try {
-    await transporter.sendMail({
-      from: `"Warehouse 231 Contact" <${process.env.SMTP_USER}>`,
-      to: process.env.MAIL_TO,
-      subject: `[${subject}] New message from ${name} (warehouse231.com)`,
-      replyTo: email,
-      text: `Subject: ${subject}\nName: ${name}\nEmail: ${email}\n\n${message}`,
-    });
-    res.json({ success: true });
-  } catch(err) {
-    console.error("Nodemailer error:", err);
-    res.json({ success: false, error: "Mail error." });
-  }
-});
-
-
-// === END MAIL SERVER
-
-// === START YOUR ENGINES
-console.log('Starting Warehouse 231 server...');
-app.listen(PORT, () => {
-    console.log(`Warehouse 231 server running on port ${PORT}`);
-});
+app.listen(process.env.PORT || 3006, () => console.log('Server running...'));
