@@ -68,17 +68,38 @@ app.get('/callback', async (req, res) => {
       return res.status(400).json(tokenData);
     }
 
-    // Store tokens in session
+    // Store token
     req.session.token = tokenData.access_token;
-    req.session.accountID = tokenData.account_id;
 
-    console.log('✅ Authenticated with Lightspeed for account:', tokenData.account_id);
+    // Always fetch account ID if not provided
+    let accountID = tokenData.account_id;
+    if (!accountID) {
+      try {
+        const acctRes = await fetch('https://api.lightspeedapp.com/API/Account.json', {
+          headers: { Authorization: `Bearer ${tokenData.access_token}` }
+        });
+        const acctData = await acctRes.json();
+
+        if (acctData.Account && acctData.Account.accountID) {
+          accountID = acctData.Account.accountID;
+        } else if (Array.isArray(acctData.Account) && acctData.Account.length > 0) {
+          accountID = acctData.Account[0].accountID;
+        }
+      } catch (err) {
+        console.error('Failed to fetch account ID:', err);
+      }
+    }
+
+    req.session.accountID = accountID;
+    console.log('✅ Authenticated with Lightspeed for account:', accountID);
+
     res.redirect('/');
   } catch (err) {
     console.error('Callback Error:', err);
     res.status(500).send('OAuth callback failed');
   }
 });
+
 
 // =========================
 // Weekly Sales Example
