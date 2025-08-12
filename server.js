@@ -104,30 +104,22 @@ app.get('/callback', async (req, res) => {
 // =========================
 // Weekly Sales with pagination + real COGS
 // =========================
-// =========================
-// Weekly Sales Example - Updated for V3
-// =========================
-app.get('/api/yesterday-sales', async (req, res) => {
+app.get('/api/yesterday-total', async (req, res) => {
   try {
     const accountID = req.session.accountID;
     const accessToken = req.session.accessToken;
 
-    // Get yesterday's UTC range
+    // Calculate yesterday's UTC start and end
     const now = new Date();
-    const start = new Date(now);
-    start.setUTCDate(now.getUTCDate() - 1);
-    start.setUTCHours(0, 0, 0, 0);
-
-    const end = new Date(start);
-    end.setUTCHours(23, 59, 59, 999);
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1, 0, 0, 0));
+    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1, 23, 59, 59));
 
     const startStr = start.toISOString().split('.')[0] + '+00:00';
     const endStr = end.toISOString().split('.')[0] + '+00:00';
 
-    // Encode for Lightspeed's operator format
+    // Lightspeed filter for completeTime between start and end
     const timeFilter = `completeTime=%3E%3C,${encodeURIComponent(startStr)},${encodeURIComponent(endStr)}`;
 
-    // Query only completed sales
     const url = `https://api.lightspeedapp.com/API/V3/Account/${accountID}/Sale.json?${timeFilter}&completed=true&archived=false&voided=false`;
 
     const response = await fetch(url, {
@@ -139,43 +131,25 @@ app.get('/api/yesterday-sales', async (req, res) => {
 
     const data = await response.json();
 
-    let gross = 0, cogs = 0;
-
-    // Handle single object vs array
+    // Normalize to array
     const sales = Array.isArray(data.Sale) ? data.Sale : (data.Sale ? [data.Sale] : []);
 
-    sales.forEach(sale => {
-      const grossAmt = parseFloat(sale.calcTotal || 0);
-      const costAmt = sale.calcFIFOCost !== undefined
-        ? parseFloat(sale.calcFIFOCost || 0)
-        : parseFloat(sale.calcAvgCost || 0);
+    // Sum total sales
+    const totalSales = sales.reduce((sum, sale) => sum + parseFloat(sale.calcTotal || 0), 0);
 
-      gross += grossAmt;
-      cogs += costAmt;
+    res.json({
+      date: startStr.split('T')[0],
+      totalSales: parseFloat(totalSales.toFixed(2)),
+      saleCount: sales.length
     });
 
-    const profit = gross - cogs;
-
-    res.json({ gross, cogs, profit, count: sales.length, date: startStr.split('T')[0] });
   } catch (err) {
-    console.error('Error fetching yesterday sales:', err);
-    res.status(500).json({ error: 'Failed to fetch yesterday sales' });
+    console.error('Error fetching yesterday total sales:', err);
+    res.status(500).json({ error: 'Failed to fetch yesterday total sales' });
   }
 });
 
 
-
-
-
-
-app.get('/api/debug-one-sale', async (req, res) => {
-  if (!req.session.token || !req.session.accountID) return res.status(401).send({error:'Not authed'});
-  const headers = { Authorization: `Bearer ${req.session.token}` };
-  const url = `https://api.lightspeedapp.com/API/Account/${req.session.accountID}/Sale.json?limit=1&offset=0&completed=true&order=timeStamp&orderby=desc`;
-  const r = await fetch(url, { headers });
-  const j = await r.json();
-  res.json(j);
-});
 
 // =========================
 // Start Server
