@@ -30,7 +30,10 @@ if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
 
 // Route: Login with Lightspeed
 app.get('/login', (req, res) => {
-  const authURL = `https://cloud.lightspeedapp.com/oauth/authorize.php?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+  const authURL = `https://cloud.lightspeedapp.com/oauth/authorize.php` +
+    `?response_type=code` +
+    `&client_id=${CLIENT_ID}` +
+    `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
   res.redirect(authURL);
 });
 
