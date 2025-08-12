@@ -28,16 +28,18 @@ if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
 // Login with Lightspeed
 // =========================
 app.get('/login', (req, res) => {
-  const scopes = 'sale:read item:read employee:read';
-  const authURL = `https://cloud.lightspeedapp.com/oauth/authorize.php` +
+  const scopes = 'employee:register_read+employee:inventory_read+employee:product_cost+employee:reports';
+  const authURL =
+    `https://cloud.lightspeedapp.com/oauth/authorize.php` +
     `?response_type=code` +
     `&client_id=${CLIENT_ID}` +
     `&scope=${encodeURIComponent(scopes)}` +
     `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
-  
+
   console.log("OAuth Login URL:", authURL);
   res.redirect(authURL);
 });
+
 
 
 // =========================
