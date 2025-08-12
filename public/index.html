@@ -6,24 +6,39 @@
 </head>
 <body>
     <a href="/login">Login with Lightspeed</a>
-    <canvas id="salesChart" width="400" height="200"></canvas>
+<h2>Weekly Sales Chart</h2>
+<canvas id="salesChart" width="400" height="200"></canvas>
 
-    <script>
-    fetch('/api/weekly-sales')
-        .then(res => res.json())
-        .then(data => {
-            new Chart(document.getElementById('salesChart'), {
-                type: 'bar',
-                data: {
-                    labels: ['Gross', 'COGS', 'Profit'],
-                    datasets: [{
-                        label: 'Weekly Sales',
-                        data: [data.gross, data.cogs, data.profit],
-                        backgroundColor: ['#4CAF50', '#F44336', '#2196F3']
-                    }]
-                }
-            });
-        });
-    </script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+fetch('/api/weekly-sales')
+  .then(res => res.json())
+  .then(data => {
+    // Example assumes data.ReportSalesTotals.rows is an array
+    const labels = [];
+    const totals = [];
+
+    if (data && data.ReportSalesTotals && data.ReportSalesTotals.row) {
+      data.ReportSalesTotals.row.forEach(row => {
+        labels.push(row['day']); // may need adjusting based on response
+        totals.push(parseFloat(row['total'] || 0));
+      });
+    }
+
+    new Chart(document.getElementById('salesChart'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Sales',
+          data: totals,
+          backgroundColor: 'rgba(75, 192, 192, 0.6)'
+        }]
+      }
+    });
+  })
+  .catch(err => console.error(err));
+</script>
+
 </body>
 </html>
