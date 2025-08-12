@@ -110,21 +110,34 @@ app.get('/api/weekly-sales', async (req, res) => {
   }
 
   try {
-    const url = `https://api.lightspeedapp.com/API/V3/Account/${req.session.accountID}/Report/SalesTotals.json?timeframe=thisweek`;
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 7);
 
-    const reportRes = await fetch(url, {
+    // Format: YYYY-MM-DDTHH:MM:SS-0000
+    const startStr = startDate.toISOString().slice(0,19) + '-0000';
+    const endStr = endDate.toISOString().slice(0,19) + '-0000';
+
+    const url = `https://api.lightspeedapp.com/API/V3/Account/${req.session.accountID}/Sale.json?timeStamp=><,${startStr},${endStr}`;
+
+    const salesRes = await fetch(url, {
       headers: { Authorization: `Bearer ${req.session.token}` }
     });
+    const salesData = await salesRes.json();
 
-    const reportData = await reportRes.json();
-    console.log("📊 Raw Report Data:", reportData);
+    let dailyTotals = {};
+    for (const sale of salesData.Sale || []) {
+      const day = sale.timeStamp.split('T')[0];
+      dailyTotals[day] = (dailyTotals[day] || 0) + parseFloat(sale.total || 0);
+    }
 
-    res.json(reportData);
+    res.json(dailyTotals);
   } catch (err) {
     console.error('Weekly Sales Error:', err);
-    res.status(500).send({ error: 'Failed to fetch weekly sales report' });
+    res.status(500).send({ error: 'Failed to fetch weekly sales' });
   }
 });
+
 
 
 app.get('/api/debug-one-sale', async (req, res) => {
