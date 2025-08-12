@@ -1,45 +1,50 @@
 // server.js
 const express = require('express');
-const fetch = require('node-fetch'); // Install v2: npm install node-fetch@2
+const fetch = require('node-fetch'); // v2: npm install node-fetch@2
 const session = require('express-session');
 const dotenv = require('dotenv');
 
 dotenv.config();
 
 const app = express();
-
-// Serve static files (public/index.html, etc.)
 app.use(express.static('public'));
-
-// Simple in-memory session for tokens
 app.use(session({
   secret: 'lightspeedsecret',
   resave: false,
   saveUninitialized: true
 }));
 
-// ENV variables (set in Heroku config)
+// Environment variables from Heroku
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const REDIRECT_URI = process.env.REDIRECT_URI; // Heroku: https://warehouse231-08109bdfee31.herokuapp.com/callback
+const REDIRECT_URI = process.env.REDIRECT_URI; // e.g. https://warehouse231-08109bdfee31.herokuapp.com/callback
 
 if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
-  console.error('❌ Missing CLIENT_ID, CLIENT_SECRET, or REDIRECT_URI in environment variables.');
+  console.error('❌ Missing CLIENT_ID, CLIENT_SECRET, or REDIRECT_URI in environment.');
   process.exit(1);
 }
 
-// Route: Login with Lightspeed
+// =========================
+// Login with Lightspeed
+// =========================
 app.get('/login', (req, res) => {
-  const authURL = `https://cloud.lightspeedapp.com/oauth/authorize.php` +
+  // Retail R-Series scopes for sales reporting
+  const scopes = 'employee:all item:all sale:all';
+
+  const authURL =
+    `https://cloud.lightspeedapp.com/oauth/authorize.php` +
     `?response_type=code` +
     `&client_id=${CLIENT_ID}` +
+    `&scope=${encodeURIComponent(scopes)}` +
     `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
-  
+
   console.log("OAuth Login URL:", authURL);
   res.redirect(authURL);
 });
 
-// Route: OAuth Callback
+// =========================
+// OAuth Callback
+// =========================
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   if (!code) return res.status(400).send('Missing code from Lightspeed');
@@ -63,19 +68,21 @@ app.get('/callback', async (req, res) => {
       return res.status(400).json(tokenData);
     }
 
-    // Store token + account ID in session
+    // Store tokens in session
     req.session.token = tokenData.access_token;
     req.session.accountID = tokenData.account_id;
 
     console.log('✅ Authenticated with Lightspeed for account:', tokenData.account_id);
-    res.redirect('/'); // Back to dashboard
+    res.redirect('/');
   } catch (err) {
     console.error('Callback Error:', err);
     res.status(500).send('OAuth callback failed');
   }
 });
 
-// Route: Weekly Sales Example
+// =========================
+// Weekly Sales Example
+// =========================
 app.get('/api/weekly-sales', async (req, res) => {
   if (!req.session.token) {
     return res.status(401).send({ error: 'Not authenticated with Lightspeed' });
@@ -94,14 +101,13 @@ app.get('/api/weekly-sales', async (req, res) => {
     const salesData = await salesRes.json();
 
     let gross = 0;
-    let cogs = 0; // For now COGS is 0 until we fetch SaleLine & Item.averageCost
+    let cogs = 0; // TODO: fetch SaleLine for COGS
 
     for (const sale of salesData.Sale || []) {
       gross += parseFloat(sale.total || 0);
     }
 
     const profit = gross - cogs;
-
     res.json({ gross, cogs, profit });
   } catch (err) {
     console.error('Weekly Sales Error:', err);
@@ -109,7 +115,9 @@ app.get('/api/weekly-sales', async (req, res) => {
   }
 });
 
-// Start server
+// =========================
+// Start Server
+// =========================
 app.listen(process.env.PORT || 3000, () => {
   console.log(`🚀 Server running at ${REDIRECT_URI.replace('/callback', '')}`);
 });
