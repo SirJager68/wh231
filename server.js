@@ -102,39 +102,72 @@ app.get('/callback', async (req, res) => {
 
 
 // =========================
-// Weekly Sales Example
+// Weekly Sales with COGS + Profit
 // =========================
 app.get('/api/weekly-sales', async (req, res) => {
-  if (!req.session.token) {
+  if (!req.session.token || !req.session.accountID) {
     return res.status(401).send({ error: 'Not authenticated with Lightspeed' });
   }
 
   try {
+    // Date range
+    const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 7);
+
     const startStr = startDate.toISOString();
+    const endStr = endDate.toISOString();
 
-    const url = `https://api.lightspeedapp.com/API/Account/${req.session.accountID}/Sale.json?timeStamp=><${startStr}`;
-
-    const salesRes = await fetch(url, {
+    // 1️⃣ Get sales from the last 7 days
+    const salesUrl = `https://api.lightspeedapp.com/API/Account/${req.session.accountID}/Sale.json?timeStamp=>${startStr}&timeStamp=<${endStr}`;
+    const salesRes = await fetch(salesUrl, {
       headers: { Authorization: `Bearer ${req.session.token}` }
     });
     const salesData = await salesRes.json();
 
-    let gross = 0;
-    let cogs = 0; // TODO: fetch SaleLine for COGS
-
-    for (const sale of salesData.Sale || []) {
-      gross += parseFloat(sale.total || 0);
+    if (!salesData.Sale) {
+      return res.json({ gross: 0, cogs: 0, profit: 0 });
     }
 
+    let gross = 0;
+    let cogs = 0;
+
+    // 2️⃣ Loop sales and fetch COGS
+    const salesArray = Array.isArray(salesData.Sale) ? salesData.Sale : [salesData.Sale];
+
+    await Promise.all(salesArray.map(async (sale) => {
+      gross += parseFloat(sale.total || 0);
+
+      // Fetch SaleLines for this sale
+      const saleLineUrl = `https://api.lightspeedapp.com/API/Account/${req.session.accountID}/Sale/${sale.saleID}/SaleLine.json`;
+      const lineRes = await fetch(saleLineUrl, {
+        headers: { Authorization: `Bearer ${req.session.token}` }
+      });
+      const lineData = await lineRes.json();
+
+      const lines = Array.isArray(lineData.SaleLine) ? lineData.SaleLine : [lineData.SaleLine];
+      lines.forEach(line => {
+        if (line && line.unitCost && line.quantity) {
+          cogs += parseFloat(line.unitCost) * parseFloat(line.quantity);
+        }
+      });
+    }));
+
+    // 3️⃣ Calculate profit
     const profit = gross - cogs;
-    res.json({ gross, cogs, profit });
+
+    res.json({
+      gross: gross.toFixed(2),
+      cogs: cogs.toFixed(2),
+      profit: profit.toFixed(2)
+    });
+
   } catch (err) {
     console.error('Weekly Sales Error:', err);
     res.status(500).send({ error: 'Failed to fetch weekly sales' });
   }
 });
+
 
 // =========================
 // Start Server
