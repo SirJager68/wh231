@@ -104,6 +104,9 @@ app.get('/callback', async (req, res) => {
 // =========================
 // Weekly Sales with pagination + real COGS
 // =========================
+// =========================
+// Weekly Sales Example - Updated for V3
+// =========================
 app.get('/api/weekly-sales', async (req, res) => {
   if (!req.session.token) {
     return res.status(401).send({ error: 'Not authenticated with Lightspeed' });
@@ -112,31 +115,43 @@ app.get('/api/weekly-sales', async (req, res) => {
   try {
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(endDate.getDate() - 7);
+    startDate.setDate(startDate.getDate() - 7);
 
-    // Format: YYYY-MM-DDTHH:MM:SS-0000
-    const startStr = startDate.toISOString().slice(0,19) + '-0000';
-    const endStr = endDate.toISOString().slice(0,19) + '-0000';
+    // Lightspeed expects UTC offset format (-0000)
+    const startStr = startDate.toISOString().slice(0, 19) + '-0000';
+    const endStr = endDate.toISOString().slice(0, 19) + '-0000';
 
-    const url = `https://api.lightspeedapp.com/API/V3/Account/${req.session.accountID}/Sale.json?timeStamp=><,${startStr},${endStr}`;
+    const url = `https://api.lightspeedapp.com/API/V3/Account/${req.session.accountID}/Sale.json?timeStamp=><,${startStr},${endStr}&completed=true&limit=100`;
+
+    console.log("Fetching weekly sales from:", url);
 
     const salesRes = await fetch(url, {
-      headers: { Authorization: `Bearer ${req.session.token}` }
+      headers: {
+        Authorization: `Bearer ${req.session.token}`,
+        Accept: 'application/json'
+      }
     });
+
     const salesData = await salesRes.json();
 
-    let dailyTotals = {};
-    for (const sale of salesData.Sale || []) {
-      const day = sale.timeStamp.split('T')[0];
-      dailyTotals[day] = (dailyTotals[day] || 0) + parseFloat(sale.total || 0);
+    let gross = 0;
+    let cogs = 0; // Could be fetched from SaleLine if needed
+
+    if (salesData.Sale) {
+      for (const sale of salesData.Sale) {
+        gross += parseFloat(sale.total || 0);
+        // If you have COGS in your account, fetch related SaleLine here
+      }
     }
 
-    res.json(dailyTotals);
+    const profit = gross - cogs;
+    res.json({ gross, cogs, profit });
   } catch (err) {
     console.error('Weekly Sales Error:', err);
     res.status(500).send({ error: 'Failed to fetch weekly sales' });
   }
 });
+
 
 
 
