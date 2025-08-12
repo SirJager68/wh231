@@ -28,7 +28,7 @@ if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
 // Login with Lightspeed
 // =========================
 app.get('/login', (req, res) => {
-  const scopes = 'employee:reports';
+  const scopes = 'employee:register';
   const authURL =
     `https://cloud.lightspeedapp.com/oauth/authorize.php` +
     `?response_type=code` +
@@ -113,17 +113,12 @@ app.get('/api/weekly-sales', async (req, res) => {
   }
 
   try {
-    const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 7);
+    const startStr = startDate.toISOString();
 
-    // Lightspeed expects UTC offset format (-0000)
-    const startStr = startDate.toISOString().slice(0, 19) + '-0000';
-    const endStr = endDate.toISOString().slice(0, 19) + '-0000';
-
-    const url = `https://api.lightspeedapp.com/API/V3/Account/${req.session.accountID}/Sale.json?timeStamp=><,${startStr},${endStr}&completed=true&limit=100`;
-
-    console.log("Fetching weekly sales from:", url);
+    // Lightspeed expects UTC offset in timestamp
+    const url = `https://api.lightspeedapp.com/API/V3/Account/${req.session.accountID}/Sale.json?timeStamp=%3E%3D,${encodeURIComponent(startStr)}`;
 
     const salesRes = await fetch(url, {
       headers: {
@@ -131,26 +126,31 @@ app.get('/api/weekly-sales', async (req, res) => {
         Accept: 'application/json'
       }
     });
-
-    const salesData = await salesRes.json();
+    const data = await salesRes.json();
 
     let gross = 0;
-    let cogs = 0; // Could be fetched from SaleLine if needed
+    let cogs = 0;
 
-    if (salesData.Sale) {
-      for (const sale of salesData.Sale) {
-        gross += parseFloat(sale.total || 0);
-        // If you have COGS in your account, fetch related SaleLine here
+    if (Array.isArray(data.Sale)) {
+      for (const sale of data.Sale) {
+        gross += parseFloat(sale.calcTotal || 0);
+        cogs += parseFloat(sale.calcAvgCost || 0);
       }
+    } else if (data.Sale) {
+      // Handle case where only one sale is returned
+      gross += parseFloat(data.Sale.calcTotal || 0);
+      cogs += parseFloat(data.Sale.calcAvgCost || 0);
     }
 
     const profit = gross - cogs;
+
     res.json({ gross, cogs, profit });
   } catch (err) {
     console.error('Weekly Sales Error:', err);
     res.status(500).send({ error: 'Failed to fetch weekly sales' });
   }
 });
+
 
 
 
