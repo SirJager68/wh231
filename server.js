@@ -28,10 +28,26 @@ if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
 // Login with Lightspeed
 // =========================
 // =========================
+// Login with Lightspeed
+// =========================
+app.get('/login', (req, res) => {
+  const scopes = 'employee:all';
+  const authURL =
+    `https://cloud.lightspeedapp.com/oauth/authorize.php` +
+    `?response_type=code` +
+    `&client_id=${CLIENT_ID}` +
+    `&scope=${encodeURIComponent(scopes)}` +
+    `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+
+  console.log("OAuth Login URL:", authURL);
+  res.redirect(authURL);
+});
+
+// =========================
 // Home route - Login or Graph
 // =========================
 app.get('/', (req, res) => {
-  if (!process.env.LS_REFRESH_TOKEN) {
+  if (!req.session.token) {
     res.send(`
       <html>
         <body style="font-family: sans-serif; text-align:center; margin-top:50px;">
@@ -43,7 +59,7 @@ app.get('/', (req, res) => {
       </html>
     `);
   } else {
-    res.sendFile(__dirname + '/public/index.html'); // your main graph page
+    res.sendFile(__dirname + '/public/index.html');
   }
 });
 
