@@ -1,47 +1,108 @@
-<!-- public/index.html -->
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>Lightspeed Reports</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 10px;
+      margin: 0;
+      background: #f8f9fa;
+    }
+    h1 {
+      font-size: 1.4em;
+      text-align: center;
+    }
+    .button-group {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    button {
+      padding: 10px 16px;
+      font-size: 1em;
+      border: none;
+      border-radius: 6px;
+      background: #007bff;
+      color: white;
+      flex: 1;
+    }
+    button.active {
+      background: #0056b3;
+    }
+    canvas {
+      background: white;
+      border-radius: 8px;
+      padding: 10px;
+    }
+  </style>
 </head>
 <body>
-    <a href="/login">Login with Lightspeed</a>
-<h2>Weekly Sales Chart</h2>
-<canvas id="salesChart" width="400" height="200"></canvas>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<h1>Sales Dashboard</h1>
+
+<div class="button-group">
+  <button data-range="7">7 Days</button>
+  <button data-range="14">14 Days</button>
+  <button data-range="month">This Month</button>
+</div>
+
+<canvas id="salesChart" height="120"></canvas>
+
 <script>
-fetch('/api/yesterday-total')
-  .then(res => res.json())
-  .then(data => {
-    // Example assumes data.ReportSalesTotals.rows is an array
-    const labels = [];
-    const totals = [];
+let chart;
+const ctx = document.getElementById('salesChart').getContext('2d');
+const buttons = document.querySelectorAll('button');
 
-    if (data && data.ReportSalesTotals && data.ReportSalesTotals.row) {
-      data.ReportSalesTotals.row.forEach(row => {
-        labels.push(row['day']); // may need adjusting based on response
-        totals.push(parseFloat(row['total'] || 0));
-      });
-    }
+buttons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    buttons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    fetchSalesData(btn.dataset.range);
+  });
+});
 
-    new Chart(document.getElementById('salesChart'), {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Sales',
-          data: totals,
-          backgroundColor: 'rgba(75, 192, 192, 0.6)'
-        }]
+async function fetchSalesData(range) {
+  const res = await fetch(`/api/sales?range=${range}`);
+  const data = await res.json();
+
+  const labels = data.map(d => d.date);
+  const totals = data.map(d => d.totalSales);
+
+  if (chart) chart.destroy();
+
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Total Sales ($)',
+        data: totals,
+        backgroundColor: '#007bff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: (value) => `$${value}`
+          }
+        }
       }
-    });
-  })
-  .catch(err => console.error(err));
+    }
+  });
+}
 
-
-
-  
+// Load initial view
+buttons[0].classList.add('active');
+fetchSalesData('7');
 </script>
 
 </body>
