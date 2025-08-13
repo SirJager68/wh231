@@ -104,50 +104,45 @@ app.get('/callback', async (req, res) => {
 // =========================
 // Weekly Sales with pagination + real COGS
 // =========================
-app.get('/api/yesterday-total', async (req, res) => {
+app.get('/api/yesterday-raw', async (req, res) => {
   try {
-    const accountID = req.session.accountID;
-    const accessToken = req.session.accessToken;
+    if (!req.session.token || !req.session.accountID) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
 
-    // Calculate yesterday's UTC start and end
+    const offset = "-0500"; // store timezone offset
+    function pad(n) { return n < 10 ? '0' + n : n; }
+
     const now = new Date();
-    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1, 0, 0, 0));
-    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1, 23, 59, 59));
+    now.setDate(now.getDate() - 1);
+    const year = now.getFullYear();
+    const month = pad(now.getMonth() + 1);
+    const day = pad(now.getDate());
 
-    const startStr = start.toISOString().split('.')[0] + '+00:00';
-    const endStr = end.toISOString().split('.')[0] + '+00:00';
+    const start = `${year}-${month}-${day}T00:00:00${offset}`;
+    const end   = `${year}-${month}-${day}T23:59:59${offset}`;
 
-    // Lightspeed filter for completeTime between start and end
-    const timeFilter = `completeTime=%3E%3C,${encodeURIComponent(startStr)},${encodeURIComponent(endStr)}`;
+    const url = `https://api.lightspeedapp.com/API/V3/Account/${req.session.accountID}/Sale.json` +
+      `?completeTime=%3E%3C,${encodeURIComponent(start)},${encodeURIComponent(end)}` +
+      `&completed=true&archived=false&voided=false&limit=100`;
 
-    const url = `https://api.lightspeedapp.com/API/V3/Account/${accountID}/Sale.json?${timeFilter}&completed=true&archived=false&voided=false`;
-
-    const response = await fetch(url, {
+    const r = await fetch(url, {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${req.session.token}`,
         Accept: 'application/json'
       }
     });
 
-    const data = await response.json();
-
-    // Normalize to array
-    const sales = Array.isArray(data.Sale) ? data.Sale : (data.Sale ? [data.Sale] : []);
-
-    // Sum total sales
-    const totalSales = sales.reduce((sum, sale) => sum + parseFloat(sale.calcTotal || 0), 0);
-
-    res.json({
-      date: startStr.split('T')[0],
-      totalSales: parseFloat(totalSales.toFixed(2)),
-      saleCount: sales.length
-    });
+    const j = await r.json();
+    console.log("Full Lightspeed JSON:", JSON.stringify(j, null, 2)); // server logs
+    res.json(j); // send raw to browser
 
   } catch (err) {
-    console.error('Error fetching yesterday total sales:', err);
-    res.status(500).json({ error: 'Failed to fetch yesterday total sales' });
+    console.error('Error fetching raw sales:', err);
+    res.status(500).json({ error: 'Failed to fetch raw sales' });
   }
 });
+
 
 
 
