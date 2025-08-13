@@ -130,7 +130,6 @@ function formatLightspeedDate(date) {
   return dayjs(date).format('YYYY-MM-DDTHH:mm:ssZZ');
 }
 
-const dayjs = require('dayjs');
 
 app.get('/api/sales', async (req, res) => {
   try {
