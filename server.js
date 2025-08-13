@@ -143,6 +143,79 @@ app.get('/api/yesterday-raw', async (req, res) => {
   }
 });
 
+// =========================
+// Yesterday total (sum of calcTotal) — V3, Chicago local day
+// =========================
+app.get('/api/yesterday-total', async (req, res) => {
+  try {
+    if (!req.session.token || !req.session.accountID) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // ---- figure out Chicago offset (CDT = -0500, CST = -0600)
+    const nowUTC = new Date();
+    const m = nowUTC.getUTCMonth(); // 0..11
+    const isDST = (m >= 2 && m <= 10); // rough DST window (Mar–Nov)
+    const offset = isDST ? '-0500' : '-0600';
+
+    // build yesterday's local (Chicago) YYYY-MM-DD
+    const chicagoNow = new Date(nowUTC.getTime()); // copy
+    // shift to Chicago calendar day by applying offset sign (+hours to go from UTC to local)
+    const offsH = parseInt(offset.slice(1,3), 10);
+    const offsM = parseInt(offset.slice(3,5), 10);
+    const offsMs = ((offset.startsWith('-') ? -1 : 1) * (offsH * 60 + offsM)) * 60 * 1000;
+    const chicagoLocalNow = new Date(nowUTC.getTime() + offsMs);
+    const y = chicagoLocalNow.getFullYear();
+    const mo = chicagoLocalNow.getMonth(); // 0-based
+    const d = chicagoLocalNow.getDate() - 1; // yesterday
+
+    const pad = n => (n < 10 ? '0' + n : '' + n);
+    const yDate = new Date(y, mo, d); // local date object for Chicago calendar
+    const Y = yDate.getFullYear();
+    const M = pad(yDate.getMonth() + 1);
+    const D = pad(yDate.getDate());
+
+    const startStr = `${Y}-${M}-${D}T00:00:00${offset}`;
+    const endStr   = `${Y}-${M}-${D}T23:59:59${offset}`;
+
+    // ---- pull sales with pagination (limit up to 100 per page)
+    const base = `https://api.lightspeedapp.com/API/V3/Account/${req.session.accountID}/Sale.json`;
+    const params = `completeTime=%3E%3C,${encodeURIComponent(startStr)},${encodeURIComponent(endStr)}&completed=true&archived=false&voided=false&sort=-completeTime&limit=100`;
+
+    let url = `${base}?${params}`;
+    let total = 0;
+    let count = 0;
+
+    // loop pages via @attributes.next (if provided)
+    // V3 returns either Sale: [] and "@attributes".next to page forward
+    for (let i = 0; i < 100; i++) { // hard stop after 100 pages
+      const r = await fetch(url, {
+        headers: { Authorization: `Bearer ${req.session.token}`, Accept: 'application/json' }
+      });
+      const j = await r.json();
+
+      const list = Array.isArray(j.Sale) ? j.Sale : (j.Sale ? [j.Sale] : []);
+      for (const s of list) {
+        total += parseFloat(s.calcTotal || s.total || 0);
+      }
+      count += list.length;
+
+      const next = j['@attributes'] && j['@attributes'].next;
+      if (!next) break;
+      url = next; // next is a fully-formed URL
+    }
+
+    res.json({
+      date: `${Y}-${M}-${D}`,
+      totalSales: Number(total.toFixed(2)),
+      saleCount: count,
+      window: { start: startStr, end: endStr }
+    });
+  } catch (err) {
+    console.error('Yesterday total error:', err);
+    res.status(500).json({ error: 'Failed to fetch yesterday total' });
+  }
+});
 
 
 

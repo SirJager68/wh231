@@ -11,7 +11,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-fetch('/api/yesterday-raw')
+fetch('/api/yesterday-total')
   .then(res => res.json())
   .then(data => {
     // Example assumes data.ReportSalesTotals.rows is an array
@@ -38,6 +38,10 @@ fetch('/api/yesterday-raw')
     });
   })
   .catch(err => console.error(err));
+
+
+
+  
 </script>
 
 </body>
