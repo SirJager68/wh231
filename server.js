@@ -115,8 +115,11 @@ function formatLightspeedDate(date) {
 
 app.get('/api/sales', async (req, res) => {
   try {
-    const range = req.query.range || '7';
+    if (!req.session.token || !req.session.accountID) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
 
+    const range = req.query.range || '7';
     let startDate, endDate;
     endDate = dayjs().endOf('day');
 
@@ -130,57 +133,38 @@ app.get('/api/sales', async (req, res) => {
       return res.status(400).json({ error: 'Invalid range' });
     }
 
-    const accountId = process.env.LS_ACCOUNT_ID;
-    let accessToken = process.env.LS_ACCESS_TOKEN;
-
-    // Refresh token if missing
-    if (!accessToken) {
-      accessToken = await refreshAccessToken();
-      if (!accessToken) return res.status(401).json({ error: 'Not authenticated' });
-    }
-
     const startStr = formatLightspeedDate(startDate);
     const endStr = formatLightspeedDate(endDate);
 
-    const url = `https://api.lightspeedapp.com/API/V3/Account/${accountId}/Sale.json?timeStamp=%3E%3C,${startStr},${endStr}&completed=true&archived=false&limit=100`;
+    const url = `https://api.lightspeedapp.com/API/V3/Account/${req.session.accountID}/Sale.json?timeStamp=%3E%3C,${startStr},${endStr}&completed=true&archived=false&limit=100`;
 
-    let response = await fetch(url, {
+    const response = await fetch(url, {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${req.session.token}`,
         Accept: 'application/json'
       }
     });
 
-    // If token expired, refresh and retry once
-    if (response.status === 401) {
-      accessToken = await refreshAccessToken();
-      if (!accessToken) return res.status(401).json({ error: 'Not authenticated' });
+    const data = await response.json();
 
-      response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: 'application/json'
-        }
-      });
+    if (!data.Sale) {
+      return res.json([]);
     }
 
-    const data = await response.json();
-    if (!data.Sale) return res.json([]);
-
-    // Aggregate totals per day
     const dailyTotals = {};
     data.Sale.forEach(sale => {
       const date = dayjs(sale.completeTime).format('YYYY-MM-DD');
       const total = parseFloat(sale.total || 0);
-      if (!dailyTotals[date]) dailyTotals[date] = 0;
-      dailyTotals[date] += total;
+      dailyTotals[date] = (dailyTotals[date] || 0) + total;
     });
 
-    // Fill in missing days
     const days = [];
     for (let d = startDate; d.isBefore(endDate) || d.isSame(endDate, 'day'); d = d.add(1, 'day')) {
       const dayStr = d.format('YYYY-MM-DD');
-      days.push({ date: dayStr, totalSales: dailyTotals[dayStr] || 0 });
+      days.push({
+        date: dayStr,
+        totalSales: dailyTotals[dayStr] || 0
+      });
     }
 
     res.json(days);
