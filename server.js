@@ -130,16 +130,15 @@ function formatLightspeedDate(date) {
   return dayjs(date).format('YYYY-MM-DDTHH:mm:ssZZ');
 }
 
+const dayjs = require('dayjs');
+
 app.get('/api/sales', async (req, res) => {
   try {
-    if (!req.session.token || !req.session.accountID) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
     const range = req.query.range || '7';
-    let startDate, endDate;
-    endDate = dayjs().endOf('day');
+    const accountId = process.env.LS_ACCOUNT_ID;
+    const accessToken = process.env.LS_ACCESS_TOKEN;
 
+    let startDate, endDate = dayjs().endOf('day');
     if (range === '7') {
       startDate = dayjs().subtract(6, 'day').startOf('day');
     } else if (range === '14') {
@@ -150,46 +149,46 @@ app.get('/api/sales', async (req, res) => {
       return res.status(400).json({ error: 'Invalid range' });
     }
 
-    const startStr = formatLightspeedDate(startDate);
-    const endStr = formatLightspeedDate(endDate);
+    const startStr = startDate.format('YYYY-MM-DD[T]00:00:00-0500');
+    const endStr   = endDate.format('YYYY-MM-DD[T]23:59:59-0500');
 
-    const url = `https://api.lightspeedapp.com/API/V3/Account/${req.session.accountID}/Sale.json?timeStamp=%3E%3C,${startStr},${endStr}&completed=true&archived=false&limit=100`;
-
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${req.session.token}`,
-        Accept: 'application/json'
-      }
-    });
-
-    const data = await response.json();
-
-    if (!data.Sale) {
-      return res.json([]);
-    }
+    let url = `https://api.lightspeedapp.com/API/V3/Account/${accountId}/Sale.json?timeStamp=%3E%3C,${startStr},${endStr}&completed=true&archived=false&limit=100`;
 
     const dailyTotals = {};
-    data.Sale.forEach(sale => {
-      const date = dayjs(sale.completeTime).format('YYYY-MM-DD');
-      const total = parseFloat(sale.total || 0);
-      dailyTotals[date] = (dailyTotals[date] || 0) + total;
-    });
+    let pageCount = 0;
 
-    const days = [];
-    for (let d = startDate; d.isBefore(endDate) || d.isSame(endDate, 'day'); d = d.add(1, 'day')) {
-      const dayStr = d.format('YYYY-MM-DD');
-      days.push({
-        date: dayStr,
-        totalSales: dailyTotals[dayStr] || 0
+    while (url && pageCount < 50) { // avoid infinite loop
+      pageCount++;
+      const r = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' }
       });
+      const j = await r.json();
+
+      const sales = Array.isArray(j.Sale) ? j.Sale : (j.Sale ? [j.Sale] : []);
+      sales.forEach(sale => {
+        const date = dayjs(sale.completeTime).format('YYYY-MM-DD');
+        const total = parseFloat(sale.total || 0);
+        dailyTotals[date] = (dailyTotals[date] || 0) + total;
+      });
+
+      url = j['@attributes'] && j['@attributes'].next ? j['@attributes'].next : null;
     }
 
-    res.json(days);
+    // Fill in missing days
+    const result = [];
+    for (let d = startDate; d.isBefore(endDate) || d.isSame(endDate, 'day'); d = d.add(1, 'day')) {
+      const dayStr = d.format('YYYY-MM-DD');
+      result.push({ date: dayStr, totalSales: +(dailyTotals[dayStr] || 0).toFixed(2) });
+    }
+
+    res.json(result);
+
   } catch (err) {
     console.error('Error fetching sales:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 
 
