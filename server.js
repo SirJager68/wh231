@@ -27,17 +27,24 @@ if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
 // =========================
 // Login with Lightspeed
 // =========================
-app.get('/login', (req, res) => {
-  const scopes = 'employee:all';
-  const authURL =
-    `https://cloud.lightspeedapp.com/oauth/authorize.php` +
-    `?response_type=code` +
-    `&client_id=${CLIENT_ID}` +
-    `&scope=${encodeURIComponent(scopes)}` +
-    `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
-
-  console.log("OAuth Login URL:", authURL);
-  res.redirect(authURL);
+// =========================
+// Home route - Login or Graph
+// =========================
+app.get('/', (req, res) => {
+  if (!process.env.LS_REFRESH_TOKEN) {
+    res.send(`
+      <html>
+        <body style="font-family: sans-serif; text-align:center; margin-top:50px;">
+          <h2>Connect to Lightspeed</h2>
+          <a href="/login" style="display:inline-block; padding:10px 20px; background:#007bff; color:#fff; text-decoration:none; border-radius:5px;">
+            Login with Lightspeed
+          </a>
+        </body>
+      </html>
+    `);
+  } else {
+    res.sendFile(__dirname + '/public/index.html'); // your main graph page
+  }
 });
 
 
@@ -101,7 +108,87 @@ app.get('/callback', async (req, res) => {
 });
 
 
+// Helper to format YYYY-MM-DDTHH:mm:ss±HHMM
+function formatLightspeedDate(date) {
+  return dayjs(date).format('YYYY-MM-DDTHH:mm:ssZZ');
+}
 
+app.get('/api/sales', async (req, res) => {
+  try {
+    const range = req.query.range || '7';
+
+    let startDate, endDate;
+    endDate = dayjs().endOf('day');
+
+    if (range === '7') {
+      startDate = dayjs().subtract(6, 'day').startOf('day');
+    } else if (range === '14') {
+      startDate = dayjs().subtract(13, 'day').startOf('day');
+    } else if (range === 'month') {
+      startDate = dayjs().startOf('month');
+    } else {
+      return res.status(400).json({ error: 'Invalid range' });
+    }
+
+    const accountId = process.env.LS_ACCOUNT_ID;
+    let accessToken = process.env.LS_ACCESS_TOKEN;
+
+    // Refresh token if missing
+    if (!accessToken) {
+      accessToken = await refreshAccessToken();
+      if (!accessToken) return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const startStr = formatLightspeedDate(startDate);
+    const endStr = formatLightspeedDate(endDate);
+
+    const url = `https://api.lightspeedapp.com/API/V3/Account/${accountId}/Sale.json?timeStamp=%3E%3C,${startStr},${endStr}&completed=true&archived=false&limit=100`;
+
+    let response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/json'
+      }
+    });
+
+    // If token expired, refresh and retry once
+    if (response.status === 401) {
+      accessToken = await refreshAccessToken();
+      if (!accessToken) return res.status(401).json({ error: 'Not authenticated' });
+
+      response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/json'
+        }
+      });
+    }
+
+    const data = await response.json();
+    if (!data.Sale) return res.json([]);
+
+    // Aggregate totals per day
+    const dailyTotals = {};
+    data.Sale.forEach(sale => {
+      const date = dayjs(sale.completeTime).format('YYYY-MM-DD');
+      const total = parseFloat(sale.total || 0);
+      if (!dailyTotals[date]) dailyTotals[date] = 0;
+      dailyTotals[date] += total;
+    });
+
+    // Fill in missing days
+    const days = [];
+    for (let d = startDate; d.isBefore(endDate) || d.isSame(endDate, 'day'); d = d.add(1, 'day')) {
+      const dayStr = d.format('YYYY-MM-DD');
+      days.push({ date: dayStr, totalSales: dailyTotals[dayStr] || 0 });
+    }
+
+    res.json(days);
+  } catch (err) {
+    console.error('Error fetching sales:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 
 
@@ -222,6 +309,30 @@ app.get('/api/yesterday-total', async (req, res) => {
   }
 });
 
+async function refreshAccessToken() {
+  if (!process.env.LS_REFRESH_TOKEN) return null;
+
+  const res = await fetch('https://cloud.lightspeedapp.com/oauth/access_token.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: process.env.LS_REFRESH_TOKEN,
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET
+    })
+  });
+  const data = await res.json();
+
+  if (data.access_token) {
+    process.env.LS_ACCESS_TOKEN = data.access_token;
+    process.env.LS_REFRESH_TOKEN = data.refresh_token;
+    console.log('🔄 Refreshed Lightspeed token');
+    return data.access_token;
+  }
+  console.error('Failed to refresh token:', data);
+  return null;
+}
 
 
 // =========================
