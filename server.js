@@ -3,6 +3,7 @@ const express = require('express');
 const fetch = require('node-fetch'); // v2: npm install node-fetch@2
 const session = require('express-session');
 const dotenv = require('dotenv');
+const dayjs = require('dayjs'); // npm install dayjs
 
 dotenv.config();
 
@@ -17,11 +18,63 @@ app.use(session({
 // Environment variables from Heroku
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const REDIRECT_URI = process.env.REDIRECT_URI; // e.g. https://warehouse231-08109bdfee31.herokuapp.com/callback
+const REDIRECT_URI = process.env.REDIRECT_URI; // e.g. https://yourapp.herokuapp.com/callback
+let LS_REFRESH_TOKEN = process.env.LS_REFRESH_TOKEN; // saved after first login
 
 if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
   console.error('❌ Missing CLIENT_ID, CLIENT_SECRET, or REDIRECT_URI in environment.');
   process.exit(1);
+}
+
+/**
+ * Helper to refresh the Lightspeed access token using the stored refresh token.
+ */
+async function refreshAccessToken() {
+  if (!LS_REFRESH_TOKEN) {
+    throw new Error("No refresh token available — please log in first at /login");
+  }
+
+  const tokenRes = await fetch('https://cloud.lightspeedapp.com/oauth/access_token.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      refresh_token: LS_REFRESH_TOKEN
+    })
+  });
+
+  const tokenData = await tokenRes.json();
+  if (tokenData.error) {
+    console.error('Refresh error:', tokenData);
+    throw new Error(tokenData.error_description || 'Failed to refresh token');
+  }
+
+  console.log("🔄 Refreshed access token at", new Date().toISOString());
+  ACCESS_TOKEN = tokenData.access_token;
+
+  // If Lightspeed returns a new refresh_token, store it
+  if (tokenData.refresh_token && tokenData.refresh_token !== LS_REFRESH_TOKEN) {
+    LS_REFRESH_TOKEN = tokenData.refresh_token;
+    console.log("💾 Updated refresh token — update it in Heroku with:");
+    console.log(`heroku config:set LS_REFRESH_TOKEN=${LS_REFRESH_TOKEN}`);
+  }
+
+  return ACCESS_TOKEN;
+}
+
+let ACCESS_TOKEN = process.env.LS_ACCESS_TOKEN || null;
+let ACCOUNT_ID = process.env.LS_ACCOUNT_ID || null;
+
+/**
+ * Get a valid access token, refreshing if needed.
+ */
+async function getAccessToken() {
+  if (!ACCESS_TOKEN) {
+    return await refreshAccessToken();
+  }
+  return ACCESS_TOKEN;
 }
 
 // =========================
@@ -39,8 +92,6 @@ app.get('/login', (req, res) => {
   console.log("OAuth Login URL:", authURL);
   res.redirect(authURL);
 });
-
-
 
 // =========================
 // OAuth Callback
@@ -68,30 +119,30 @@ app.get('/callback', async (req, res) => {
       return res.status(400).json(tokenData);
     }
 
-    // Store token
-    req.session.token = tokenData.access_token;
+    ACCESS_TOKEN = tokenData.access_token;
+    LS_REFRESH_TOKEN = tokenData.refresh_token;
 
-    // Always fetch account ID if not provided
+    console.log("✅ Got new access token and refresh token");
+    console.log("💾 Save refresh token to Heroku so you don't need to log in again:");
+    console.log(`heroku config:set LS_REFRESH_TOKEN=${LS_REFRESH_TOKEN}`);
+
+    // Get account ID if not provided
     let accountID = tokenData.account_id;
     if (!accountID) {
-      try {
-        const acctRes = await fetch('https://api.lightspeedapp.com/API/Account.json', {
-          headers: { Authorization: `Bearer ${tokenData.access_token}` }
-        });
-        const acctData = await acctRes.json();
+      const acctRes = await fetch('https://api.lightspeedapp.com/API/Account.json', {
+        headers: { Authorization: `Bearer ${ACCESS_TOKEN}` }
+      });
+      const acctData = await acctRes.json();
 
-        if (acctData.Account && acctData.Account.accountID) {
-          accountID = acctData.Account.accountID;
-        } else if (Array.isArray(acctData.Account) && acctData.Account.length > 0) {
-          accountID = acctData.Account[0].accountID;
-        }
-      } catch (err) {
-        console.error('Failed to fetch account ID:', err);
+      if (acctData.Account && acctData.Account.accountID) {
+        accountID = acctData.Account.accountID;
+      } else if (Array.isArray(acctData.Account) && acctData.Account.length > 0) {
+        accountID = acctData.Account[0].accountID;
       }
     }
 
-    req.session.accountID = accountID;
-    console.log('✅ Authenticated with Lightspeed for account:', accountID);
+    ACCOUNT_ID = accountID;
+    console.log('✅ Authenticated with Lightspeed for account:', ACCOUNT_ID);
 
     res.redirect('/');
   } catch (err) {
@@ -100,12 +151,14 @@ app.get('/callback', async (req, res) => {
   }
 });
 
-
-// Helper to format YYYY-MM-DDTHH:mm:ss±HHMM
+// Helper to format Lightspeed date
 function formatLightspeedDate(date) {
   return dayjs(date).format('YYYY-MM-DDTHH:mm:ssZZ');
 }
 
+// =========================
+// Sales Range API (7, 14 days, month)
+// =========================
 app.get('/api/sales', async (req, res) => {
   try {
     const range = req.query.range || '7';
@@ -123,13 +176,14 @@ app.get('/api/sales', async (req, res) => {
       return res.status(400).json({ error: 'Invalid range' });
     }
 
-    const accountId = process.env.LS_ACCOUNT_ID; // Store in .env
-    const accessToken = process.env.LS_ACCESS_TOKEN; // Store in .env
+    if (!ACCOUNT_ID) throw new Error("Missing ACCOUNT_ID — log in first");
 
     const startStr = formatLightspeedDate(startDate);
     const endStr = formatLightspeedDate(endDate);
 
-    const url = `https://api.lightspeedapp.com/API/V3/Account/${accountId}/Sale.json?timeStamp=%3E%3C,${startStr},${endStr}&completed=true&archived=false&limit=100`;
+    const accessToken = await getAccessToken();
+
+    const url = `https://api.lightspeedapp.com/API/V3/Account/${ACCOUNT_ID}/Sale.json?timeStamp=%3E%3C,${startStr},${endStr}&completed=true&archived=false&limit=100`;
 
     const response = await fetch(url, {
       headers: {
@@ -147,14 +201,14 @@ app.get('/api/sales', async (req, res) => {
     // Normalize data into daily totals
     const dailyTotals = {};
 
-    data.Sale.forEach(sale => {
+    (Array.isArray(data.Sale) ? data.Sale : [data.Sale]).forEach(sale => {
       const date = dayjs(sale.completeTime).format('YYYY-MM-DD');
       const total = parseFloat(sale.total || 0);
       if (!dailyTotals[date]) dailyTotals[date] = 0;
       dailyTotals[date] += total;
     });
 
-    // Fill missing days with zero sales
+    // Fill missing days
     const days = [];
     for (let d = startDate; d.isBefore(endDate) || d.isSame(endDate, 'day'); d = d.add(1, 'day')) {
       const dayStr = d.format('YYYY-MM-DD');
@@ -170,127 +224,6 @@ app.get('/api/sales', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-
-
-
-
-// =========================
-// Weekly Sales with pagination + real COGS
-// =========================
-app.get('/api/yesterday-raw', async (req, res) => {
-  try {
-    if (!req.session.token || !req.session.accountID) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    const offset = "-0500"; // store timezone offset
-    function pad(n) { return n < 10 ? '0' + n : n; }
-
-    const now = new Date();
-    now.setDate(now.getDate() - 1);
-    const year = now.getFullYear();
-    const month = pad(now.getMonth() + 1);
-    const day = pad(now.getDate());
-
-    const start = `${year}-${month}-${day}T00:00:00${offset}`;
-    const end   = `${year}-${month}-${day}T23:59:59${offset}`;
-
-    const url = `https://api.lightspeedapp.com/API/V3/Account/${req.session.accountID}/Sale.json` +
-      `?completeTime=%3E%3C,${encodeURIComponent(start)},${encodeURIComponent(end)}` +
-      `&completed=true&archived=false&voided=false&limit=100`;
-
-    const r = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${req.session.token}`,
-        Accept: 'application/json'
-      }
-    });
-
-    const j = await r.json();
-    console.log("Full Lightspeed JSON:", JSON.stringify(j, null, 2)); // server logs
-    res.json(j); // send raw to browser
-
-  } catch (err) {
-    console.error('Error fetching raw sales:', err);
-    res.status(500).json({ error: 'Failed to fetch raw sales' });
-  }
-});
-
-// =========================
-// Yesterday total (sum of calcTotal) — V3, Chicago local day
-// =========================
-app.get('/api/yesterday-total', async (req, res) => {
-  try {
-    if (!req.session.token || !req.session.accountID) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    // ---- figure out Chicago offset (CDT = -0500, CST = -0600)
-    const nowUTC = new Date();
-    const m = nowUTC.getUTCMonth(); // 0..11
-    const isDST = (m >= 2 && m <= 10); // rough DST window (Mar–Nov)
-    const offset = isDST ? '-0500' : '-0600';
-
-    // build yesterday's local (Chicago) YYYY-MM-DD
-    const chicagoNow = new Date(nowUTC.getTime()); // copy
-    // shift to Chicago calendar day by applying offset sign (+hours to go from UTC to local)
-    const offsH = parseInt(offset.slice(1,3), 10);
-    const offsM = parseInt(offset.slice(3,5), 10);
-    const offsMs = ((offset.startsWith('-') ? -1 : 1) * (offsH * 60 + offsM)) * 60 * 1000;
-    const chicagoLocalNow = new Date(nowUTC.getTime() + offsMs);
-    const y = chicagoLocalNow.getFullYear();
-    const mo = chicagoLocalNow.getMonth(); // 0-based
-    const d = chicagoLocalNow.getDate() - 1; // yesterday
-
-    const pad = n => (n < 10 ? '0' + n : '' + n);
-    const yDate = new Date(y, mo, d); // local date object for Chicago calendar
-    const Y = yDate.getFullYear();
-    const M = pad(yDate.getMonth() + 1);
-    const D = pad(yDate.getDate());
-
-    const startStr = `${Y}-${M}-${D}T00:00:00${offset}`;
-    const endStr   = `${Y}-${M}-${D}T23:59:59${offset}`;
-
-    // ---- pull sales with pagination (limit up to 100 per page)
-    const base = `https://api.lightspeedapp.com/API/V3/Account/${req.session.accountID}/Sale.json`;
-    const params = `completeTime=%3E%3C,${encodeURIComponent(startStr)},${encodeURIComponent(endStr)}&completed=true&archived=false&voided=false&sort=-completeTime&limit=100`;
-
-    let url = `${base}?${params}`;
-    let total = 0;
-    let count = 0;
-
-    // loop pages via @attributes.next (if provided)
-    // V3 returns either Sale: [] and "@attributes".next to page forward
-    for (let i = 0; i < 100; i++) { // hard stop after 100 pages
-      const r = await fetch(url, {
-        headers: { Authorization: `Bearer ${req.session.token}`, Accept: 'application/json' }
-      });
-      const j = await r.json();
-
-      const list = Array.isArray(j.Sale) ? j.Sale : (j.Sale ? [j.Sale] : []);
-      for (const s of list) {
-        total += parseFloat(s.calcTotal || s.total || 0);
-      }
-      count += list.length;
-
-      const next = j['@attributes'] && j['@attributes'].next;
-      if (!next) break;
-      url = next; // next is a fully-formed URL
-    }
-
-    res.json({
-      date: `${Y}-${M}-${D}`,
-      totalSales: Number(total.toFixed(2)),
-      saleCount: count,
-      window: { start: startStr, end: endStr }
-    });
-  } catch (err) {
-    console.error('Yesterday total error:', err);
-    res.status(500).json({ error: 'Failed to fetch yesterday total' });
-  }
-});
-
-
 
 // =========================
 // Start Server
