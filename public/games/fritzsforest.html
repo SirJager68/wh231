@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Haunted Gnome Trail: 1986</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background: #000;
+            image-rendering: pixelated;
+        }
+
+        #hud {
+            position: fixed;
+            left: 8px;
+            top: 8px;
+            color: #9eff9e;
+            font-family: "Courier New", monospace;
+            font-size: 14px;
+            text-shadow: 0 0 6px #093;
+        }
+
+        #hud .bar {
+            height: 8px;
+            width: 160px;
+            background: #041;
+            border: 1px solid #062;
+            border-radius: 2px;
+            margin-top: 4px;
+        }
+
+        #hud .bar>span {
+            display: block;
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #1aff76, #0b9);
+        }
+
+        #hud .row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        #help {
+            position: fixed;
+            right: 8px;
+            top: 8px;
+            color: #79f;
+            font-family: "Courier New", monospace;
+            font-size: 12px;
+            opacity: .8;
+        }
+
+        #title {
+            position: fixed;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: "Press Start 2P", "Courier New", monospace;
+            font-size: 20px;
+            letter-spacing: 2px;
+            color: #6fef6f;
+            text-shadow: 0 0 6px #4f0, 0 0 12px #0f0, 2px 2px 0 #320032;
+            animation: flicker 2.5s infinite;
+            pointer-events: none;
+        }
+
+        @keyframes flicker {
+
+            0%,
+            19%,
+            21%,
+            23%,
+            25%,
+            54%,
+            56%,
+            100% {
+                opacity: 1;
+            }
+
+            20%,
+            24%,
+            55% {
+                opacity: 0.6;
+            }
+        }
+
+        #splashScreen {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, #000 0%, #010 80%, #000 100%);
+            color: #9eff9e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-family: "Press Start 2P", "Courier New", monospace;
+            font-size: 12px;
+            line-height: 1.6em;
+            letter-spacing: 1px;
+            z-index: 999;
+            text-shadow: 0 0 8px #0f0, 0 0 16px #030;
+        }
+
+        #splashScreen h1 {
+            font-size: 20px;
+            margin-bottom: 1.5em;
+            color: #6fef6f;
+            text-shadow: 0 0 6px #4f0, 0 0 12px #0f0, 2px 2px 0 #320032;
+        }
+
+        #splashContent {
+            max-width: 600px;
+            padding: 20px;
+        }
+
+        .blink {
+            animation: blinkAnim 1.2s infinite;
+        }
+
+        @keyframes blinkAnim {
+
+            0%,
+            50%,
+            100% {
+                opacity: 1;
+            }
+
+            25%,
+            75% {
+                opacity: 0.4;
+            }
+        }
+
+        .fadeOut {
+            animation: fadeOut 1.2s forwards;
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="splashScreen">
+        <div id="splashContent">
+            <h1>FRITZ’S HAUNTED FOREST</h1>
+            <p>
+                Long ago, Fritz Wiessner owned land in an enchanted forest.<br>
+                He carved trails for others to enjoy.<br><br>
+                To keep them clean, he hired gnomes to help.<br>
+                But one night, the gnomes turned on him —<br>
+                dragging Fritz deep into the forest.<br><br>
+                The trails remain.<br>
+                The gnomes haunt them still.<br><br>
+                <span class="blink">Click to Enter the Forest</span>
+            </p>
+        </div>
+    </div>
+
+    <canvas id="game"></canvas>
+    <audio id="bgMusic" src="Pixel Ghosts.mp3" loop preload="auto"></audio>
+
+    <div id="title">FRITZ’S HAUNTED FOREST</div>
+
+    <div id="hud">
+        <div class="row">❤️ HP</div>
+        <div class="bar"><span id="hpFill" style="width:100%"></span></div>
+        <div class="row">🪨 Rocks: <span id="rocks">∞</span> &nbsp; ⭐ Score: <span id="score">0</span></div>
+        <div class="row">🏚️ House Waves: <span id="wave">0</span></div>
+    </div>
+    <div id="help">WASD move · Left Mouse = throw rock toward cursor · Stay on green trail · World wraps</div>
+
+    <script>
+        (function () {
+            const canvas = document.getElementById('game');
+            const ctx = canvas.getContext('2d');
+            let W, H; const DPR = Math.min(devicePixelRatio || 1, 2);
+            function fit() { W = canvas.width = Math.floor(innerWidth * DPR); H = canvas.height = Math.floor(innerHeight * DPR); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); }
+            fit();
+            addEventListener('resize', fit, { passive: true });
+
+            // ===== World Settings =====
+            const WORLD = 1024;
+            const TILE = 12;
+            const TRAIL_THICKNESS = 32;  // wider trail
+            const OFFTRAIL_DPS = 2;      // slower damage per second
+            const healthPacks = [];
+
+
+            const player = { x: WORLD / 2, y: WORLD / 3, hp: 100, maxHp: 100, speed: 2.0, facing: 0 };
+            let score = 0;
+
+            // ===== Splash Screen =====
+            const splashScreen = document.getElementById('splashScreen');
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && splashScreen.style.display !== 'none') {
+                    startGame();
+                }
+            });
+
+
+
+            // ===== Background Music =====
+            const bgMusic = document.getElementById("bgMusic");
+
+            // Unlock audio on first user interaction (mobile browsers require it)
+            document.addEventListener('click', () => {
+                if (bgMusic.paused) {
+                    bgMusic.volume = 0.4;
+                    bgMusic.play().catch(() => { });
+                }
+            }, { once: true });
+
+            // === Retro Pew Synth ===
+            function playShootSound() {
+                const ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctxAudio.createOscillator();
+                const gain = ctxAudio.createGain();
+
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(400 + Math.random() * 100, ctxAudio.currentTime);
+                gain.gain.setValueAtTime(0.15, ctxAudio.currentTime);
+
+                osc.connect(gain);
+                gain.connect(ctxAudio.destination);
+
+                // short blip
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.001, ctxAudio.currentTime + 0.2);
+                osc.stop(ctxAudio.currentTime + 0.25);
+            }
+
+            function playPickupSound() {
+                const ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctxAudio.createOscillator();
+                const gain = ctxAudio.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, ctxAudio.currentTime);
+                gain.gain.setValueAtTime(0.2, ctxAudio.currentTime);
+                osc.connect(gain);
+                gain.connect(ctxAudio.destination);
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.001, ctxAudio.currentTime + 0.3);
+                osc.stop(ctxAudio.currentTime + 0.3);
+            }
+
+
+
+            // ===== Helper functions =====
+            const wrap = v => (v % WORLD + WORLD) % WORLD;
+            const dWrap = (a, b) => { let d = a - b; if (d > WORLD / 2) d -= WORLD; if (d < -WORLD / 2) d += WORLD; return d; };
+            const torusDist2 = (ax, ay, bx, by) => { const dx = dWrap(ax, bx), dy = dWrap(ay, by); return dx * dx + dy * dy; };
+
+            // ===== Trail Generation =====
+            const trail = [];
+            function genTrail() {
+                trail.length = 0; // clear old trail
+                let x = WORLD / 2, y = TILE * 6, dir = Math.PI / 2;
+                for (let i = 0; i < 230; i++) {
+                    dir += (Math.random() - 0.5) * 0.6;
+                    const step = 12 + Math.random() * 10;
+                    x = wrap(x + Math.cos(dir) * step);
+                    y = wrap(y + Math.sin(dir) * step);
+                    const sx = Math.round(x / TILE) * TILE;
+                    const sy = Math.round(y / TILE) * TILE;
+                    trail.push({ x: sx, y: sy });
+                }
+            }
+            genTrail();
+            window.genTrail = genTrail;
+
+
+            // ===== Haunted House =====
+            const haunted = {
+                x: trail[trail.length - 1].x,
+                y: wrap(trail[trail.length - 1].y + 40),
+                size: 32,
+                wave: 0,
+                timer: 0,
+                hp: 200,
+                maxHp: 200,
+                hitFlash: 0
+            };
+
+
+            // ===== Entities =====
+            const gnomes = [];
+            const rocks = [];
+
+            function spawnGnomeNearTrail(distance) {
+                const i = (Math.random() * trail.length) | 0;
+                const t = trail[i];
+                const ang = Math.random() * Math.PI * 2;
+                const r = distance || (8 + Math.random() * 20);
+                const x = wrap(t.x + Math.cos(ang) * r), y = wrap(t.y + Math.sin(ang) * r);
+                gnomes.push({ x, y, bad: Math.random() < 0.7, hp: 20 });
+            }
+
+            for (let i = 0; i < 24; i++) spawnGnomeNearTrail(20);
+
+            // ===== Input =====
+            const keys = new Set();
+            addEventListener('keydown', e => {
+                if (['w', 'a', 's', 'd'].includes(e.key.toLowerCase())) e.preventDefault();
+                keys.add(e.key.toLowerCase());
+            });
+            addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+
+            const mouse = { x: W / 2, y: H / 2 };
+            addEventListener('mousemove', e => { mouse.x = e.clientX * DPR; mouse.y = e.clientY * DPR; });
+
+            // ===== Shooting (LEFT MOUSE CLICK) =====
+            let shootCD = 0;
+            canvas.addEventListener('mousedown', e => {
+                if (e.button === 0) tryShoot(e.clientX, e.clientY);
+            });
+            canvas.addEventListener('touchstart', e => {
+                const t = e.touches[0];
+                tryShoot(t.clientX, t.clientY);
+            });
+
+            // === Improved shooting with proper aim ===
+            function tryShoot(mx, my) {
+                if (shootCD > 0) return;
+                shootCD = 180;
+                // Calculate direction from center (player) to click position
+                const dx = (mx - W / 2);
+                const dy = (my - H / 2);
+                const mag = Math.hypot(dx, dy) || 1;
+                const sp = 6.0;
+                playShootSound();
+                const vx = (dx / mag) * sp;
+                const vy = (dy / mag) * sp;
+                rocks.push({ x: player.x, y: player.y, vx, vy, life: 1200 });
+            }
+
+            function distToTrail(px, py) {
+                let best = Infinity;
+                for (const n of trail) { const d2 = torusDist2(px, py, n.x, n.y); if (d2 < best) best = d2; }
+                return Math.sqrt(best);
+            }
+
+            // ===== Main Loop =====
+            let last = performance.now();
+            function tick(now) {
+                const dt = Math.min(50, now - last); last = now;
+                const dtSec = dt / 1000;
+
+                // movement
+                let mx = 0, my = 0;
+                if (keys.has('w')) my -= 1;
+                if (keys.has('s')) my += 1;
+                if (keys.has('a')) mx -= 1;
+                if (keys.has('d')) mx += 1;
+                if (mx || my) {
+                    const m = Math.hypot(mx, my);
+                    mx /= m; my /= m;
+                    player.x = wrap(player.x + mx * player.speed);
+                    player.y = wrap(player.y + my * player.speed);
+                }
+
+                // === Player facing direction ===
+                player.facing = Math.atan2((mouse.y - H / 2), (mouse.x - W / 2));
+
+                const dTrail = distToTrail(player.x, player.y);
+                if (dTrail > TRAIL_THICKNESS) {
+                    player.hp = Math.max(0, player.hp - OFFTRAIL_DPS * dtSec);
+                }
+
+                // Gnome AI
+                for (const g of gnomes) {
+                    const dx = dWrap(player.x, g.x), dy = dWrap(player.y, g.y);
+                    const m = Math.hypot(dx, dy) || 1;
+                    if (g.bad) {
+                        if (m < 180) {
+                            const sp = 0.6 + Math.min(1.2, score / 600);
+                            g.x = wrap(g.x + dx / m * sp);
+                            g.y = wrap(g.y + dy / m * sp);
+                        } else {
+                            g.x = wrap(g.x + (Math.random() - 0.5) * 0.5);
+                            g.y = wrap(g.y + (Math.random() - 0.5) * 0.5);
+                        }
+                        if (m < 14) { player.hp = Math.max(0, player.hp - 20 * dtSec); }
+                    } else {
+                        if (Math.random() < 0.02) { const t = trail[(Math.random() * trail.length) | 0]; g.x = t.x; g.y = t.y; }
+                    }
+                }
+
+
+
+                // Haunted house waves
+                haunted.timer += dt;
+                if (haunted.timer > 8000) {
+                    haunted.timer = 0;
+                    haunted.wave++;
+                    for (let i = 0; i < 3; i++) {
+                        const ang = Math.random() * Math.PI * 2;
+                        const r = 40 + Math.random() * 20;
+                        gnomes.push({ x: wrap(haunted.x + Math.cos(ang) * r), y: wrap(haunted.y + Math.sin(ang) * r), bad: true, hp: 24 });
+                    }
+                }
+
+                // === Health Pack Spawning ===
+                if (Math.random() < 0.002) { // about every 20 sec
+                    const t = trail[(Math.random() * trail.length) | 0];
+                    healthPacks.push({ x: t.x, y: t.y, life: 30000 }); // lasts 30 seconds
+                }
+
+                // Rocks
+                shootCD = Math.max(0, shootCD - dt);
+                for (let i = rocks.length - 1; i >= 0; i--) {
+                    const r = rocks[i];
+                    r.life -= dt;
+                    r.x = wrap(r.x + r.vx);
+                    r.y = wrap(r.y + r.vy);
+                    if (r.life <= 0) { rocks.splice(i, 1); continue; }
+
+                    // --- Check gnome hit ---
+                    for (let j = gnomes.length - 1; j >= 0; j--) {
+                        const g = gnomes[j];
+                        const d2 = torusDist2(r.x, r.y, g.x, g.y);
+                        if (d2 < 10 * 10) {
+                            g.hp -= 18;
+                            r.life = 0;
+                            if (g.hp <= 0) {
+                                if (g.bad) { score += 10; }
+                                else { score = Math.max(0, score - 5); }
+                                gnomes.splice(j, 1);
+                            }
+                            break;
+                        }
+                    }
+
+                    // --- Check castle hit ---
+                    const d2House = torusDist2(r.x, r.y, haunted.x, haunted.y);
+                    if (d2House < (haunted.size * 0.8) ** 2) {
+                        haunted.hp -= 10;
+                        haunted.hitFlash = 5;
+                        r.life = 0;
+                        if (haunted.hp <= 0) {
+                            haunted.hp = 0;
+                            nextLevel();
+                        }
+                    }
+                }
+
+
+                // === Health Pack Pickup ===
+                for (let i = healthPacks.length - 1; i >= 0; i--) {
+                    const p = healthPacks[i];
+                    p.life -= dt;
+                    const d2 = torusDist2(p.x, p.y, player.x, player.y);
+                    if (d2 < 14 * 14) {
+                        player.hp = Math.min(player.maxHp, player.hp + 25);
+                        playPickupSound();
+                        healthPacks.splice(i, 1);
+                    } else if (p.life <= 0) {
+                        healthPacks.splice(i, 1);
+                    }
+                }
+
+
+                document.getElementById('hpFill').style.width = (player.hp / player.maxHp * 100).toFixed(1) + '%';
+                document.getElementById('score').textContent = score | 0;
+                document.getElementById('wave').textContent = haunted.wave | 0;
+
+                render(dTrail);
+                if (player.hp > 0) requestAnimationFrame(tick);
+                else gameOver();
+            }
+
+            // ===== Render =====
+            function render(dTrail) {
+                ctx.clearRect(0, 0, innerWidth, innerHeight);
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, innerWidth, innerHeight);
+
+                ctx.globalAlpha = 0.08;
+                ctx.fillStyle = '#0f0';
+                for (let y = 0; y < innerHeight; y += 2) { ctx.fillRect(0, y, innerWidth, 1); }
+                ctx.globalAlpha = 1;
+
+                const cx = innerWidth / 2, cy = innerHeight / 2;
+
+                ctx.fillStyle = '#003700';
+                for (const n of trail) {
+                    const dx = dWrap(n.x, player.x), dy = dWrap(n.y, player.y);
+                    const sx = cx + dx, sy = cy + dy;
+                    if (sx < -TILE || sy < -TILE || sx > innerWidth + TILE || sy > innerHeight + TILE) continue;
+                    ctx.fillRect(sx, sy, TILE + 4, TILE + 4);
+                }
+
+                const dxH = dWrap(haunted.x, player.x), dyH = dWrap(haunted.y, player.y);
+                const sxH = cx + dxH, syH = cy + dyH;
+
+                // === Gnome Castle ===
+                if (haunted.hitFlash > 0) haunted.hitFlash--;
+                ctx.fillStyle = haunted.hitFlash > 0 ? '#f00' : '#310031';
+                ctx.fillRect(sxH - haunted.size / 2, syH - haunted.size / 2, haunted.size, haunted.size);
+                ctx.strokeStyle = '#7a3b7a';
+                ctx.strokeRect(sxH - haunted.size / 2 + 0.5, syH - haunted.size / 2 + 0.5, haunted.size - 1, haunted.size - 1);
+
+                // Castle health bar (visible if not full)
+                if (haunted.hp < haunted.maxHp) {
+                    ctx.fillStyle = '#400';
+                    ctx.fillRect(sxH - 20, syH - haunted.size / 2 - 8, 40, 4);
+                    ctx.fillStyle = '#0f0';
+                    ctx.fillRect(sxH - 20, syH - haunted.size / 2 - 8, (haunted.hp / haunted.maxHp) * 40, 4);
+                }
+
+
+                for (const g of gnomes) {
+                    const dx = dWrap(g.x, player.x), dy = dWrap(g.y, player.y);
+                    const sx = cx + dx, sy = cy + dy;
+                    if (sx < -8 || sy < -8 || sx > innerWidth + 8 || sy > innerHeight + 8) continue;
+                    ctx.fillStyle = g.bad ? '#f44' : '#4f4';
+                    ctx.fillRect(sx - 3, sy - 3, 6, 6);
+                }
+
+                ctx.fillStyle = '#ccc';
+                for (const r of rocks) {
+                    const dx = dWrap(r.x, player.x), dy = dWrap(r.y, player.y);
+                    const sx = cx + dx, sy = cy + dy;
+                    ctx.fillRect(sx - 2, sy - 2, 4, 4);
+                }
+
+                // === Health Packs ===
+                for (const p of healthPacks) {
+                    const dx = dWrap(p.x, player.x), dy = dWrap(p.y, player.y);
+                    const sx = cx + dx, sy = cy + dy;
+                    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 200);
+                    ctx.fillStyle = `rgba(100,200,255,${0.7 + pulse * 0.3})`;
+                    ctx.fillRect(sx - 4, sy - 4, 8, 8);
+                }
+
+
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(player.facing);
+                ctx.fillStyle = '#7cf';
+                ctx.fillRect(-4, -4, 8, 8);
+                ctx.fillStyle = '#dff';
+                ctx.fillRect(3, -2, 3, 4);
+                ctx.restore();
+
+                if (dTrail > TRAIL_THICKNESS) {
+                    ctx.strokeStyle = 'rgba(255,64,64,0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 16 + ((performance.now() / 120) % 3), 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+
+            function nextLevel() {
+                // stop enemy spawning
+                haunted.timer = 0;
+                haunted.wave = 0;
+                gnomes.length = 0;
+
+                // visual message
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(0, 0, innerWidth, innerHeight);
+                ctx.fillStyle = '#6fef6f';
+                ctx.font = '22px "Press Start 2P", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('CASTLE CLEANSED!', innerWidth / 2, innerHeight / 2 - 20);
+                ctx.font = '14px "Press Start 2P", monospace';
+                ctx.fillText('The forest grows quieter...', innerWidth / 2, innerHeight / 2 + 20);
+
+                playPickupSound(); // satisfying ping
+                setTimeout(() => {
+                    haunted.hp = haunted.maxHp;
+                    score += 100;
+                    genTrail(); // make new trail for next level
+                }, 2500);
+            }
+
+
+            function gameOver() {
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(0, 0, innerWidth, innerHeight);
+                ctx.fillStyle = '#fff';
+                ctx.font = '24px Courier New, monospace';
+                ctx.fillText('GAME OVER', innerWidth / 2 - 80, innerHeight / 2);
+                ctx.font = '14px Courier New, monospace';
+                ctx.fillText('Reload to play again', innerWidth / 2 - 86, innerHeight / 2 + 22);
+            }
+
+            function startGame() {
+                splashScreen.classList.add('fadeOut');
+                setTimeout(() => {
+                    splashScreen.style.display = 'none';
+                    if (bgMusic && bgMusic.paused) bgMusic.play().catch(() => { });
+                    requestAnimationFrame(tick); // 👈 game starts here
+                }, 1000);
+            }
+        })();
+    </script>
+</body>
+
+</html>
