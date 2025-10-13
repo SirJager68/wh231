@@ -170,10 +170,24 @@
             width: 120px;
             height: 120px;
             border-radius: 50%;
-            border: 2px solid rgba(100, 255, 100, 0.5);
-            background: rgba(0, 50, 0, 0.2);
+            border: 2px solid rgba(100, 255, 100, 0.3);
+            background: rgba(0, 40, 0, 0.3);
             touch-action: none;
         }
+
+        #stickDot {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 255, 0, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            transition: 0.05s;
+        }
+
 
         #fireBtn {
             position: fixed;
@@ -221,7 +235,10 @@
             </p>
         </div>
     </div>
-    <div id="joystick"></div>
+    <div id="joystick">
+        <div id="stickDot"></div>
+    </div>
+
     <div id="fireBtn">🔥</div>
 
 
@@ -271,6 +288,8 @@
             const TRAIL_THICKNESS = 32;  // wider trail
             const OFFTRAIL_DPS = 2;      // slower damage per second
             const healthPacks = [];
+            let levelTransition = false;
+
 
 
             const player = { x: WORLD / 2, y: WORLD / 3, hp: 100, maxHp: 100, speed: 2.0, facing: 0 };
@@ -315,38 +334,34 @@
                 }
             }, { once: true });
 
-            // === Retro Pew Synth ===
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
             function playShootSound() {
-                const ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctxAudio.createOscillator();
-                const gain = ctxAudio.createGain();
-
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
                 osc.type = 'square';
-                osc.frequency.setValueAtTime(400 + Math.random() * 100, ctxAudio.currentTime);
-                gain.gain.setValueAtTime(0.15, ctxAudio.currentTime);
-
+                osc.frequency.value = 400 + Math.random() * 100;
+                gain.gain.value = 0.15;
                 osc.connect(gain);
-                gain.connect(ctxAudio.destination);
-
-                // short blip
+                gain.connect(audioCtx.destination);
                 osc.start();
-                gain.gain.exponentialRampToValueAtTime(0.001, ctxAudio.currentTime + 0.2);
-                osc.stop(ctxAudio.currentTime + 0.25);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+                osc.stop(audioCtx.currentTime + 0.25);
             }
 
             function playPickupSound() {
-                const ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctxAudio.createOscillator();
-                const gain = ctxAudio.createGain();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(880, ctxAudio.currentTime);
-                gain.gain.setValueAtTime(0.2, ctxAudio.currentTime);
+                osc.frequency.value = 880;
+                gain.gain.value = 0.2;
                 osc.connect(gain);
-                gain.connect(ctxAudio.destination);
+                gain.connect(audioCtx.destination);
                 osc.start();
-                gain.gain.exponentialRampToValueAtTime(0.001, ctxAudio.currentTime + 0.3);
-                osc.stop(ctxAudio.currentTime + 0.3);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+                osc.stop(audioCtx.currentTime + 0.3);
             }
+
 
 
 
@@ -426,19 +441,95 @@
             });
 
             // === Virtual Joystick for Movement ===
-            canvas.addEventListener('touchstart', e => {
+            // ===== FIXED ANALOG JOYSTICK (bottom-left circle) =====
+            const joystick = document.getElementById('joystick');
+            const stickDot = document.getElementById('stickDot');
+            const joyRect = joystick.getBoundingClientRect();
+
+            moveStick.active = false;
+            moveStick.x = 0;
+            moveStick.y = 0;
+
+            joystick.addEventListener('touchstart', e => {
+                e.preventDefault();
                 const t = e.touches[0];
-                if (t.clientX < window.innerWidth / 2) {
-                    moveStick.active = true;
-                    moveStick.startX = t.clientX;
-                    moveStick.startY = t.clientY;
-                    moveStick.x = t.clientX;
-                    moveStick.y = t.clientY;
-                } else {
-                    // Right side fires
-                    tryShoot(t.clientX, t.clientY);
-                }
+                moveStick.active = true;
+                handleJoystickMove(t);
             });
+
+            joystick.addEventListener('touchmove', e => {
+                e.preventDefault();
+                if (!moveStick.active) return;
+                const t = e.touches[0];
+                handleJoystickMove(t);
+            });
+
+            joystick.addEventListener('touchend', e => {
+                moveStick.active = false;
+                moveStick.x = 0;
+                moveStick.y = 0;
+                stickDot.style.transform = 'translate(-50%, -50%)';
+            });
+
+            // ===== MOBILE BURST FIRING =====
+ // ===== MOBILE AUTO-AIM BURST SHOOTING =====
+canvas.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    // Right half starts burst
+    if (t.clientX > window.innerWidth / 2 && !mobileBurstActive && burstCooldown <= 0) {
+        mobileBurstActive = true;
+        burstShotsRemaining = 5;
+        burstCooldown = 1500;
+    }
+});
+
+
+// === Find nearest bad gnome (auto-aim target) ===
+function getAutoAimTarget() {
+    let closest = null;
+    let bestDist = Infinity;
+
+    // find the nearest "bad" gnome
+    for (const g of gnomes) {
+        if (!g.bad) continue;
+        const d2 = torusDist2(player.x, player.y, g.x, g.y);
+        if (d2 < bestDist) {
+            bestDist = d2;
+            closest = g;
+        }
+    }
+
+    // fallback to the haunted house if no bad gnomes remain
+    if (!closest) closest = haunted;
+    return closest;
+}
+
+
+
+
+            // helper
+            function handleJoystickMove(t) {
+                const rect = joystick.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+
+                // distance from center
+                let dx = t.clientX - centerX;
+                let dy = t.clientY - centerY;
+                const dist = Math.min(Math.hypot(dx, dy), rect.width / 2);
+                const ang = Math.atan2(dy, dx);
+
+                dx = Math.cos(ang) * dist;
+                dy = Math.sin(ang) * dist;
+
+                // move the dot visually
+                stickDot.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+                // normalize -1..1 for movement strength
+                moveStick.x = dx / (rect.width / 2);
+                moveStick.y = dy / (rect.height / 2);
+            }
+
 
             canvas.addEventListener('touchmove', e => {
                 const t = e.touches[0];
@@ -493,26 +584,29 @@
 
 
             // === Improved shooting with proper aim ===
+            let mobileBurstActive = false;
+            let burstShotsRemaining = 0;
+            let burstCooldown = 0;
+
+
             function tryShoot(mx, my) {
                 if (shootCD > 0) return;
                 shootCD = 180;
 
-                // Center of screen (player position in view)
                 const cx = canvas.width / (2 * DPR);
                 const cy = canvas.height / (2 * DPR);
-
-                // Calculate direction from player to touch point
                 const dx = mx - cx;
                 const dy = my - cy;
                 const mag = Math.hypot(dx, dy) || 1;
-
                 const sp = 6.0;
+
                 const vx = (dx / mag) * sp;
                 const vy = (dy / mag) * sp;
 
                 playShootSound();
                 rocks.push({ x: player.x, y: player.y, vx, vy, life: 1200 });
             }
+
 
 
             function distToTrail(px, py) {
@@ -535,26 +629,37 @@
                 let mx = 0, my = 0;
 
                 // Mobile Joystick movement
+                // === Mobile Joystick movement ===
                 if (moveStick.active) {
-                    const dx = moveStick.x - moveStick.startX;
-                    const dy = moveStick.y - moveStick.startY;
-                    const dist = Math.hypot(dx, dy);
-                    if (dist > 10) {
-    const strength = Math.min(dist / 40, 1);
-    mx += (dx / dist) * strength;
-    my += (dy / dist) * strength;
-}
+                    mx += moveStick.x;
+                    my += moveStick.y;
                 }
+
+                // if (moveStick.active) {
+                //     const dx = moveStick.x - moveStick.startX;
+                //     const dy = moveStick.y - moveStick.startY;
+                //     const dist = Math.hypot(dx, dy);
+                //     if (dist > 10) {
+                //         const strength = Math.min(dist / 40, 1);
+                //         mx += (dx / dist) * strength;
+                //         my += (dy / dist) * strength;
+                //     }
+                // }
                 //--WASD`
                 if (keys.has('w')) my -= 1;
                 if (keys.has('s')) my += 1;
                 if (keys.has('a')) mx -= 1;
                 if (keys.has('d')) mx += 1;
+                // === Player movement (keyboard + joystick combined) ===
                 if (mx || my) {
                     const m = Math.hypot(mx, my);
-                    mx /= m; my /= m;
-                    player.x = wrap(player.x + mx * player.speed);
-                    player.y = wrap(player.y + my * player.speed);
+                    mx /= m;
+                    my /= m;
+
+                    // Adjust joystick sensitivity separately from keyboard
+                    const moveFactor = moveStick.active ? 0.5 : 1.0; // 👈 joystick = 50% speed
+                    player.x = wrap(player.x + mx * player.speed * moveFactor);
+                    player.y = wrap(player.y + my * player.speed * moveFactor);
                 }
 
                 // === Player facing direction ===
@@ -564,6 +669,33 @@
                 if (dTrail > TRAIL_THICKNESS) {
                     player.hp = Math.max(0, player.hp - OFFTRAIL_DPS * dtSec);
                 }
+
+                // === Mobile burst shooting update ===
+                // === Mobile auto-aim burst update ===
+if (burstCooldown > 0) burstCooldown -= dt;
+
+if (mobileBurstActive && burstShotsRemaining > 0) {
+    if (shootCD <= 0) {
+        const target = getAutoAimTarget();
+        const dx = dWrap(target.x, player.x);
+        const dy = dWrap(target.y, player.y);
+        const mag = Math.hypot(dx, dy) || 1;
+
+        const sp = 6.0;
+        const vx = (dx / mag) * sp;
+        const vy = (dy / mag) * sp;
+
+        playShootSound();
+        rocks.push({ x: player.x, y: player.y, vx, vy, life: 1200 });
+
+        burstShotsRemaining--;
+        shootCD = 120; // delay between each shot
+    }
+} else if (mobileBurstActive && burstShotsRemaining <= 0) {
+    mobileBurstActive = false;
+}
+
+
 
                 // Gnome AI
                 for (const g of gnomes) {
@@ -635,8 +767,9 @@
                         haunted.hp -= 10;
                         haunted.hitFlash = 5;
                         r.life = 0;
-                        if (haunted.hp <= 0) {
+                        if (haunted.hp <= 0 && !levelTransition) {
                             haunted.hp = 0;
+                            levelTransition = true;
                             nextLevel();
                         }
                     }
@@ -770,10 +903,11 @@
             }
 
             function nextLevel() {
-                // stop enemy spawning
+                console.log('Level Cleared!');
                 haunted.timer = 0;
                 haunted.wave = 0;
                 gnomes.length = 0;
+                healthPacks.length = 0; // clear leftover packs
 
                 // visual message
                 ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -786,12 +920,25 @@
                 ctx.fillText('The forest grows quieter...', innerWidth / 2, innerHeight / 2 + 20);
 
                 playPickupSound(); // satisfying ping
+
                 setTimeout(() => {
+                    // Generate new trail for next level
+                    genTrail();
+                    const last = trail[trail.length - 1];
+                    haunted.x = last.x;
+                    haunted.y = last.y;
                     haunted.hp = haunted.maxHp;
+                    player.x = trail[0].x;
+                    player.y = trail[0].y;
+                    player.hp = player.maxHp;
+                    gnomes.length = 0;
+                    for (let i = 0; i < 24; i++) spawnGnomeNearTrail(20);
                     score += 100;
-                    genTrail(); // make new trail for next level
+                    levelTransition = false; // ✅ allow next transition again
                 }, 2500);
+
             }
+
 
 
             function gameOver() {

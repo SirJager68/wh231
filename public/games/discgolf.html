@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Disc Golf '86</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  html,body{
+    margin:0;
+    padding:0;
+    background:#000;
+    overflow:hidden;
+    font-family:'Press Start 2P',monospace;
+    color:#00ffcc;
+    height:100%;
+    width:100%;
+    touch-action:none; /* disable default gestures */
+  }
+  canvas{
+    display:block;
+    background:#000;
+    width:100vw;
+    height:60vh;
+    image-rendering:pixelated;
+  }
+  #hud{
+    position:fixed;
+    top:8px;
+    left:8px;
+    font-size:10px;
+    color:#0ff;
+    text-shadow:0 0 8px #0ff;
+    z-index:10;
+  }
+  #title{
+    position:absolute;
+    top:35%;
+    width:100%;
+    text-align:center;
+    color:#0ff;
+    text-shadow:0 0 10px #0ff;
+    font-size:14px;
+    z-index:5;
+  }
+  .btn{
+    position:fixed;
+    bottom:5vh;
+    background:#111;
+    border:2px solid #0ff;
+    color:#0ff;
+    font-family:'Press Start 2P';
+    font-size:12px;
+    padding:14px 18px;
+    border-radius:12px;
+    text-align:center;
+    user-select:none;
+    touch-action:manipulation;
+  }
+  #leftBtn{left:10vw;}
+  #rightBtn{left:30vw;}
+  #throwBtn{right:10vw;background:#400080;border-color:#f0f;}
+  .crt{
+    position:fixed;top:0;left:0;right:0;bottom:0;
+    pointer-events:none;
+    background:linear-gradient(rgba(0,0,0,0) 50%,rgba(0,0,0,.2) 50%);
+    background-size:100% 2px;
+    animation:flicker 0.15s infinite;
+  }
+  @keyframes flicker{0%,100%{opacity:.95;}50%{opacity:.85;}}
+</style>
+</head>
+<body>
+<div id="hud"></div>
+<div id="title">PRESS THROW TO START<br><br>DISC GOLF '86</div>
+<canvas id="game" width="800" height="450"></canvas>
+<div id="leftBtn" class="btn">←</div>
+<div id="rightBtn" class="btn">→</div>
+<div id="throwBtn" class="btn">THROW</div>
+<div class="crt"></div>
+
+<script>
+const c = document.getElementById('game');
+const ctx = c.getContext('2d');
+let running=false,wind=0,hole=1,score=0;
+let disc,basket,throwAngle=-45,throwPower=0,isCharging=false,messageTimer=0;
+const hud=document.getElementById('hud'),title=document.getElementById('title');
+const leftBtn=document.getElementById('leftBtn'),rightBtn=document.getElementById('rightBtn'),throwBtn=document.getElementById('throwBtn');
+
+// prevent all scrolling & zooming gestures
+['touchstart','touchmove','touchend','gesturestart'].forEach(evt=>{
+  document.addEventListener(evt,e=>{
+    e.preventDefault();
+  },{passive:false});
+});
+
+// lock window scroll position
+window.scrollTo(0,0);
+window.addEventListener('scroll',()=>window.scrollTo(0,0));
+
+function startGame(){
+  running=true;
+  title.style.display='none';
+  hole=1;score=0;
+  setupHole();
+  loop();
+}
+function setupHole(){
+  disc={x:100,y:350,vx:0,vy:0,flying:false};
+  basket={x:Math.random()*300+450,y:350,r:20};
+  wind=(Math.random()*4-2);
+  hud.innerHTML=`HOLE ${hole}<br>PAR 3<br>WIND ${wind.toFixed(1)} →`;
+  throwAngle=-45;throwPower=0;
+}
+function throwDisc(){
+  const rad=throwAngle*Math.PI/180;
+  disc.vx=Math.cos(rad)*throwPower/6;
+  disc.vy=Math.sin(rad)*throwPower/6;
+  disc.flying=true;
+}
+function update(){
+  if(!disc.flying){
+    if(isCharging){
+      throwPower+=1.5;if(throwPower>100)throwPower=100;
+    }
+    return;
+  }
+  disc.x+=disc.vx+wind*0.1;
+  disc.y+=disc.vy;
+  disc.vy+=0.3;
+  if(disc.y>350){disc.y=350;disc.vy*=-0.3;disc.vx*=0.6;if(Math.abs(disc.vx)<0.3)disc.flying=false;}
+  const dx=disc.x-basket.x,dy=disc.y-basket.y,dist=Math.sqrt(dx*dx+dy*dy);
+  if(dist<basket.r){
+    disc.flying=false;score++;hole++;messageTimer=60;
+    setTimeout(setupHole,1500);
+  }
+}
+function draw(){
+  ctx.clearRect(0,0,c.width,c.height);
+  ctx.fillStyle="#022";ctx.fillRect(0,380,c.width,70);
+  ctx.beginPath();ctx.arc(basket.x,basket.y,basket.r,0,Math.PI*2);
+  ctx.strokeStyle="#0ff";ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();ctx.arc(disc.x,disc.y,6,0,Math.PI*2);
+  ctx.fillStyle="#ff0";ctx.fill();
+  if(!disc.flying){
+    ctx.save();ctx.translate(disc.x,disc.y);ctx.rotate(throwAngle*Math.PI/180);
+    ctx.strokeStyle="#f0f";ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(40,0);ctx.stroke();ctx.restore();
+    ctx.fillStyle="#222";ctx.fillRect(100,30,100,8);
+    ctx.fillStyle="#f0f";ctx.fillRect(100,30,throwPower,8);
+  }
+  ctx.fillStyle="#0ff";ctx.font="10px 'Press Start 2P'";
+  ctx.fillText(`SCORE: ${score}`,650,30);
+  if(messageTimer>0){ctx.fillStyle="#0f0";ctx.font="16px 'Press Start 2P'";
+    ctx.textAlign="center";ctx.fillText("BIRDIE!",c.width/2,c.height/2);ctx.textAlign="left";messageTimer--;}
+}
+function loop(){if(!running)return;update();draw();requestAnimationFrame(loop);}
+
+// --- Keyboard
+document.addEventListener('keydown',e=>{
+  if(!running && e.code==='Space')startGame();
+  if(!disc.flying){
+    if(e.code==='ArrowLeft')throwAngle-=2;
+    if(e.code==='ArrowRight')throwAngle+=2;
+    if(e.code==='Space'&&!isCharging){isCharging=true;throwPower=0;}
+  }
+});
+document.addEventListener('keyup',e=>{
+  if(e.code==='Space'&&isCharging){isCharging=false;throwDisc();}
+});
+
+// --- Touch Buttons
+leftBtn.addEventListener('touchstart',()=>{if(running&&!disc.flying)throwAngle-=4;});
+rightBtn.addEventListener('touchstart',()=>{if(running&&!disc.flying)throwAngle+=4;});
+throwBtn.addEventListener('touchstart',()=>{
+  if(!running){startGame();return;}
+  if(!disc.flying&&!isCharging){isCharging=true;throwPower=0;}
+});
+throwBtn.addEventListener('touchend',()=>{
+  if(isCharging){isCharging=false;throwDisc();}
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Grid Runner</title>
+  <style>
+      body {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          background-color: black;
+          color: cyan;
+          font-family: Arial, sans-serif;
+          margin: 0;
+          overflow: hidden;
+      }
+      .game-container {
+          position: relative;
+          width: 400px;
+          height: 400px;
+          border: 2px solid cyan;
+      }
+      .score-container,
+      .level-container {
+          margin-top: 10px;
+          font-size: 24px;
+          font-weight: bold;
+          color: yellow;
+          text-shadow: 2px 2px 5px cyan;
+      }
+      .kills-container {
+          margin-top: 10px;
+          font-size: 24px;
+          font-weight: bold;
+          color: yellow;
+          text-shadow: 2px 2px 5px cyan;
+      }
+      #gameOverMessage {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          font-size: 28px;
+          font-weight: bold;
+          color: red;
+          text-shadow: 2px 2px 5px black;
+          display: none;
+          background: rgba(0, 0, 0, 0.75);
+          padding: 10px 20px;
+          border-radius: 10px;
+      }
+
+      .beta-text {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        font-size: 18px;
+        color: rgba(255, 255, 255, 0.3); /* Low opacity white */
+        font-weight: bold;
+    }
+    .health-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-top: 10px;
+    font-size: 20px;
+    color: white;
+    font-weight: bold;
+    }
+
+    .health-bar {
+        width: 200px;
+        height: 20px;
+        background-color: rgba(255, 255, 255, 0.2);
+        border: 2px solid red;
+        border-radius: 5px;
+        margin-left: 10px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .health-fill {
+        height: 100%;
+        width: 100%; /* Full health initially */
+        background: linear-gradient(to right, red, orange, yellow);
+        transition: width 0.3s ease-in-out;
+    }
+
+  </style>
+</head>
+<body>
+  <h1>GRID RUNNER</h1>
+
+
+  <div class="game-container">
+      <canvas id="gameCanvas" width="400" height="400"></canvas>
+  </div>
+  <div class="health-container">
+    <span>Enemy Health:</span>
+    <div class="health-bar">
+        <div class="health-fill" id="enemyHealthBar"></div>
+    </div>
+</div>
+
+  <h2 id="gameOverMessage" style="display: none;">Game Over! Press R to Restart</h2>
+  <div class="score-container">Score: <span id="score">0</span></div>
+  <div class="level-container">Level: <span id="level">1</span></div>
+  <div class="kills-container">Enemies Killed: <span id="kills">0</span></div>
+    <!-- BETA VERSION TEXT -->
+    <div class="beta-text">BETA VERSION</div>
+  <script>
+    // WORKING VERSION
+    /*********************
+     * GAME VARIABLES
+     *********************/
+     console.log("Game script is running!");
+
+    const gridSize = 40;
+    const cellSize = 10;
+
+    let player, enemy;
+    let trail = [];
+    let trailDuration = 20; // Number of game loops before a trail disappears
+
+    let enemyTrail = [];
+    let trailSet = new Set();
+    let enemyTrailSet = new Set();
+    let trail2Set = new Set();
+    let enemy2;
+    let enemy2Trail = [];
+    let enemy2TrailSet = new Set();
+    let enemiesKilled = 0;
+    let enemy2Dead = false;
+    let enemy1Dead = false;
+    let obstacles = trailSet;
+
+
+    let gameOver = false;
+    let score = 0;
+    let level = 1;
+    let kills = 0;
+    let gameSpeed = 150;
+    let gameLoop;
+
+    const scoreDisplay = document.getElementById("score");
+    const levelDisplay = document.getElementById("level");
+    const killsDisplay = document.getElementById("kills");
+    const gameOverMessage = document.getElementById("gameOverMessage");
+    const maxTrailOpacity = 1.0;  // Full visibility
+    const minTrailOpacity = 0.2;  // Nearly invisible before disappearing
+    const maxTrailDamage = 20;    // Max damage when fresh
+    const minTrailDamage = 5;     // Min damage before disappearing
+    // Canvas
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+//=============================================================RESET GAME
+
+
+function resetGame(keepScore = true) {
+    player = { x: 20, y: 20, direction: "RIGHT" };
+
+    enemy = { 
+        x: Math.floor(Math.random() * gridSize), 
+        y: Math.floor(Math.random() * gridSize),
+        direction: ["UP", "DOWN", "LEFT", "RIGHT"][Math.floor(Math.random() * 4)],
+        health: 100 // ✅ Enemy starts with full health
+    };
+
+    // Reset trails
+    trail = [];
+    enemyTrail = [];
+    trailSet.clear();
+    enemyTrailSet.clear();
+    
+    // Reset walls
+    walls.clear();
+    
+    // Generate random walls
+    for (let i = 0; i < numWalls; i++) {
+        let wallX, wallY, length, direction;
+        let validWall = false;
+
+        while (!validWall) {
+            wallX = Math.floor(Math.random() * gridSize);
+            wallY = Math.floor(Math.random() * gridSize);
+            length = Math.floor(Math.random() * 11) + 5;
+            direction = Math.random() > 0.5 ? "HORIZONTAL" : "VERTICAL";
+
+            validWall = true;
+            for (let j = 0; j < length; j++) {
+                let newX = direction === "HORIZONTAL" ? wallX + j : wallX;
+                let newY = direction === "VERTICAL" ? wallY + j : wallY;
+
+                if (newX >= gridSize || newY >= gridSize || 
+                    (newX === player.x && newY === player.y) || 
+                    (newX === enemy.x && newY === enemy.y)) {  
+                    validWall = false;
+                    break;
+                }
+            }
+        }
+
+        for (let j = 0; j < length; j++) {
+            let newX = direction === "HORIZONTAL" ? wallX + j : wallX;
+            let newY = direction === "VERTICAL" ? wallY + j : wallY;
+            walls.add(`${newX},${newY}`);
+        }
+    }
+
+    gameOver = false;
+    gameOverMessage.style.display = "none";
+
+    if (!keepScore) {
+        score = 0;
+        level = 1;
+        gameSpeed = 150;
+    } else {
+        level++;
+        gameSpeed = Math.max(50, gameSpeed * 0.95);
+    }
+
+    scoreDisplay.textContent = score;
+    levelDisplay.textContent = level;
+    killsDisplay.textContent = kills;
+    // ✅ Reset Health Bar UI
+    updateHealthBar();
+    startGameLoop();
+}
+
+
+
+    /*********************
+     * RENDERING
+     *********************/
+    function drawGrid() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Optional faint grid lines
+      ctx.strokeStyle = "rgba(0,255,255,0.05)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= gridSize; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, i * cellSize);
+        ctx.lineTo(canvas.width, i * cellSize);
+        ctx.stroke();
+      }
+      for (let j = 0; j <= gridSize; j++) {
+        ctx.beginPath();
+        ctx.moveTo(j * cellSize, 0);
+        ctx.lineTo(j * cellSize, canvas.height);
+        ctx.stroke();
+      }
+    }
+
+    function hexToRgb(hex) {
+    // Convert color name to hex (optional)
+    const colors = {
+    "red": "#FF0000",
+    "orange": "#FFA500",
+    "yellow": "#FFFF00",
+    "cyan": "#00FFFF",
+    "purple": "#800080",
+    "darkcyan": "#008B8B", // Added dark cyan
+    "brightneonorange": "#FF5E00",
+    "deepamberglow" : "#FF8C00", 
+    "fieryredorange": "#FF4500"
+};
+
+    if (colors[hex]) hex = colors[hex]; // If it's a named color, convert it to hex
+
+    // Convert hex to RGB
+    hex = hex.replace("#", "");
+    let bigint = parseInt(hex, 16);
+    let r = (bigint >> 16) & 255;
+    let g = (bigint >> 8) & 255;
+    let b = bigint & 255;
+    return `${r},${g},${b}`;
+}
+
+
+    function drawCircle(x, y, color, glowColor = null, opacity =1) {
+      const cx = x * cellSize + cellSize / 2;
+      const cy = y * cellSize + cellSize / 2;
+
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(${hexToRgb(color)}, ${opacity})`;
+      //ctx.fillStyle = color;
+      // Glow
+      if (glowColor) {
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 10;
+      } else {
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.arc(cx, cy, cellSize / 2.5, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+
+    function drawCycle(x, y, color, glowColor) {
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(${hexToRgb(color)}, 1)`; // Full opacity for cycles
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 25; // Increased glow effect for cycles
+        ctx.arc(x * cellSize + cellSize / 2, y * cellSize + cellSize / 2, cellSize / 2, 0, 2 * Math.PI);
+        ctx.fill();
+    }
+    function drawGlowingTrail(trail, color, glowColor) {
+        trail.forEach((pos, index) => {
+            ctx.beginPath();
+            let opacity = Math.max(0.3, 1 - (index / trail.length) * 0.5); // Ensure trails remain visible
+            ctx.fillStyle = `rgba(${hexToRgb(color)}, .50)`;
+            ctx.shadowColor = glowColor;
+            ctx.shadowBlur = 10; // Lower glow effect for trails
+            ctx.arc(pos.x * cellSize + cellSize / 2, pos.y * cellSize + cellSize / 2, cellSize / 3, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+    }
+
+      function updateCanvas() {
+      drawGrid();
+
+      // Draw Walls
+      walls.forEach(pos => {
+          const [x, y] = pos.split(',').map(Number);
+          drawWall(x, y);
+      });
+
+      // Draw Player
+      drawCycle(player.x, player.y, "cyan", "cyan", 1);
+      drawGlowingTrail(trail, "cyan", "#FF6A00");
+
+      // Draw Enemy
+      drawCycle(enemy.x, enemy.y, "red", "darkred");
+      drawGlowingTrail(enemyTrail, "orange", "#FF0000"); // Enemy trail (red glow)
+
+      // Update score display
+      scoreDisplay.textContent = score;
+  }
+
+
+    //===========================================================INPUT HANDLING
+    document.addEventListener("keydown", (event) => {
+      switch (event.key) {
+        case "ArrowUp":
+          if (player.direction !== "DOWN") player.direction = "UP";
+          break;
+        case "ArrowDown":
+          if (player.direction !== "UP") player.direction = "DOWN";
+          break;
+        case "ArrowLeft":
+          if (player.direction !== "RIGHT") player.direction = "LEFT";
+          break;
+        case "ArrowRight":
+          if (player.direction !== "LEFT") player.direction = "RIGHT";
+          break;
+      }
+    });
+
+    document.addEventListener("keydown", function(event) {
+    if (event.key === "r" || event.key === "R") {
+        resetGame();
+    }
+    });
+
+
+    //================================================== MOVE PLAYER
+    let mode = 1;  // 1 = Wrap Around, 0 = Die on Edge
+
+    function movePlayer() {
+    if (gameOver) return;
+
+    // Add player's current position to trail
+    trail.push({ x: player.x, y: player.y, time: trailDuration }); // ✅ Add time counter
+    trailSet.add(`${player.x},${player.y}`);
+
+    switch (player.direction) {
+        case "UP":    player.y--; break;
+        case "DOWN":  player.y++; break;
+        case "LEFT":  player.x--; break;
+        case "RIGHT": player.x++; break;
+    }
+
+    if (mode === 1) {
+        // Wrap Around
+        if (player.x < 0) player.x = gridSize - 1;
+        if (player.x >= gridSize) player.x = 0;
+        if (player.y < 0) player.y = gridSize - 1;
+        if (player.y >= gridSize) player.y = 0;
+    } else {
+        // Die if hitting edges
+        if (player.x < 0 || player.x >= gridSize || player.y < 0 || player.y >= gridSize) {
+            console.warn("💥 Player hit the wall! Game Over.");
+            triggerExplosion(player.x, player.y);
+            gameOver = true;
+            gameOverMessage.style.display = "block";
+            return;
+        }
+    }
+
+    // **Check Collision with Walls**
+    if (walls.has(`${player.x},${player.y}`)) {
+        console.warn("🚧 Player crashed into a wall! Game Over.");
+        triggerExplosion(player.x, player.y);
+        gameOver = true;
+        gameOverMessage.style.display = "block";
+        return;
+    }
+    // **Fade and Remove Trails Over Time**
+    for (let i = 0; i < trail.length; i++) {
+        trail[i].time--; 
+        trail[i].opacity = Math.max(minTrailOpacity, (trail[i].time / trailDuration) * maxTrailOpacity);
+        trail[i].damage = Math.max(minTrailDamage, (trail[i].time / trailDuration) * maxTrailDamage);
+
+        if (trail[i].time <= 0) {
+            trailSet.delete(`${trail[i].x},${trail[i].y}`);
+            trail.splice(i, 1);
+            i--;
+        }
+    }
+
+}
+
+
+document.addEventListener("keydown", (event) => {
+    if (event.key === "m" || event.key === "M") {
+        mode = mode === 1 ? 0 : 1;
+        console.log("Mode switched! 1 = Wrap Around, 0 = Die on Edge. Current mode:", mode);
+    }
+});
+
+//=============================================================ENEMY
+let letreverse = 1;
+
+function moveEnemy(smart = false) {
+    if (!enemy) return; // ✅ Prevents running if enemy is null
+
+    let nextMove = smart ? getSmartChaseMove(enemy) : getEnemyNextMove(enemy);
+
+    if (nextMove) {
+        enemy.direction = nextMove.direction;
+        enemy.x = nextMove.x;
+        enemy.y = nextMove.y;
+    } else {
+        ensureEnemyMoves(enemy);
+    }
+
+    // Add to Enemy Trail
+    enemyTrail.push({ x: enemy.x, y: enemy.y, time: trailDuration });
+    enemyTrailSet.add(`${enemy.x},${enemy.y}`);
+
+
+    // **Leave a Trail Before Moving**
+    enemyTrail.push({ x: enemy.x, y: enemy.y });
+    enemyTrailSet.add(`${enemy.x},${enemy.y}`);
+}
+
+function drawGlowingTrail(trail, color, glowColor) {
+    trail.forEach((pos) => {
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(${hexToRgb(color)}, ${pos.opacity})`;  // ✅ Apply opacity
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 15 * pos.opacity; // ✅ Glow decreases as trail fades
+        ctx.arc(pos.x * cellSize + cellSize / 2, pos.y * cellSize + cellSize / 2, cellSize / 3, 0, 2 * Math.PI);
+        ctx.fill();
+    });
+}
+
+  function getEnemyNextMove(enemy) {
+
+      let nextX = enemy.x;
+      let nextY = enemy.y;
+
+      let possibleMoves = [];
+
+      if (letreverse === 1) {
+          // Allow full movement, including reverse direction
+          if (player.x > enemy.x) possibleMoves.push({ x: enemy.x + 1, y: enemy.y, direction: "RIGHT" });
+          if (player.x < enemy.x) possibleMoves.push({ x: enemy.x - 1, y: enemy.y, direction: "LEFT" });
+          if (player.y > enemy.y) possibleMoves.push({ x: enemy.x, y: enemy.y + 1, direction: "DOWN" });
+          if (player.y < enemy.y) possibleMoves.push({ x: enemy.x, y: enemy.y - 1, direction: "UP" });
+      } else {
+          // Prevent the enemy from reversing direction
+          if (player.x > enemy.x && enemy.direction !== "LEFT") possibleMoves.push({ x: enemy.x + 1, y: enemy.y, direction: "RIGHT" });
+          if (player.x < enemy.x && enemy.direction !== "RIGHT") possibleMoves.push({ x: enemy.x - 1, y: enemy.y, direction: "LEFT" });
+          if (player.y > enemy.y && enemy.direction !== "UP") possibleMoves.push({ x: enemy.x, y: enemy.y + 1, direction: "DOWN" });
+          if (player.y < enemy.y && enemy.direction !== "DOWN") possibleMoves.push({ x: enemy.x, y: enemy.y - 1, direction: "UP" });
+      }
+
+
+
+      // **Filter out moves that hit walls**
+      possibleMoves = possibleMoves.filter(move => {
+          let testX = move.x, testY = move.y;
+
+          // **Apply screen wrapping**
+          if (testX < 0) testX = gridSize - 1;
+          if (testX >= gridSize) testX = 0;
+          if (testY < 0) testY = gridSize - 1;
+          if (testY >= gridSize) testY = 0;
+
+          return !walls.has(`${testX},${testY}`);
+      });
+
+      // **Pick the Best Move**
+      if (possibleMoves.length > 0) {
+          return possibleMoves[Math.floor(Math.random() * possibleMoves.length)]; // Randomly pick if multiple options
+      } else {
+          return null; // No valid move found
+      }
+  }
+
+  function getSmartChaseMove(enemy) {
+
+    let nextX = enemy.x;
+    let nextY = enemy.y;
+
+    let possibleMoves = [];
+
+    if (player.x > enemy.x && enemy.direction !== "LEFT") possibleMoves.push({ x: enemy.x + 1, y: enemy.y, direction: "RIGHT" });
+    if (player.x < enemy.x && enemy.direction !== "RIGHT") possibleMoves.push({ x: enemy.x - 1, y: enemy.y, direction: "LEFT" });
+    if (player.y > enemy.y && enemy.direction !== "UP") possibleMoves.push({ x: enemy.x, y: enemy.y + 1, direction: "DOWN" });
+    if (player.y < enemy.y && enemy.direction !== "DOWN") possibleMoves.push({ x: enemy.x, y: enemy.y - 1, direction: "UP" });
+
+    // **Filter out moves that hit walls or the player's trail**
+    possibleMoves = possibleMoves.filter(move => {
+        let testX = move.x, testY = move.y;
+
+        // **Apply screen wrapping**
+        if (testX < 0) testX = gridSize - 1;
+        if (testX >= gridSize) testX = 0;
+        if (testY < 0) testY = gridSize - 1;
+        if (testY >= gridSize) testY = 0;
+
+        return !walls.has(`${testX},${testY}`) && !trailSet.has(`${testX},${testY}`); // Avoid walls & player trail
+    });
+
+    // **Pick the Best Move**
+    if (possibleMoves.length > 0) {
+        return possibleMoves[Math.floor(Math.random() * possibleMoves.length)]; // Randomly pick if multiple options
+    } else {
+        return null; // No valid move found
+    }
+}
+function ensureEnemyMoves(enemy) {
+    if (!enemy.direction || enemyTrailSet.has(`${enemy.x},${enemy.y}`)) {
+        console.warn("⚠️ Enemy is stuck! Taking damage...");
+
+        damageEnemy(10); // ✅ Reduce health when stuck
+
+        let safeMoves = ["UP", "DOWN", "LEFT", "RIGHT"].filter(dir => {
+            let testX = enemy.x, testY = enemy.y;
+            if (dir === "UP") testY--;
+            if (dir === "DOWN") testY++;
+            if (dir === "LEFT") testX--;
+            if (dir === "RIGHT") testX++;
+
+            if (testX < 0) testX = gridSize - 1;
+            if (testX >= gridSize) testX = 0;
+            if (testY < 0) testY = gridSize - 1;
+            if (testY >= gridSize) testY = 0;
+
+            return !walls.has(`${testX},${testY}`) && !enemyTrailSet.has(`${testX},${testY}`);
+        });
+
+        if (safeMoves.length > 0) {
+            enemy.direction = safeMoves[Math.floor(Math.random() * safeMoves.length)];
+            console.log("🔄 Enemy forced to move:", enemy.direction);
+        } else {
+            console.warn("🚨 Enemy is completely trapped! Losing health...");
+        }
+    }
+}
+
+function damageEnemy(amount) {
+    enemy.health -= amount;
+    console.log(`💥 Enemy takes ${amount} damage! Health: ${enemy.health}`);
+
+    // Update the health bar UI
+    updateHealthBar();
+
+    if (enemy.health <= 0) {
+        console.log("🔥 Enemy exploded!");
+        enemyExplodes(enemy.x, enemy.y);
+    }
+}
+
+function enemyExplodes(x, y) {
+    let explosionFragments = [];
+    const numFragments = 10;
+
+    for (let i = 0; i < numFragments; i++) {
+        explosionFragments.push({
+            x: x * cellSize + cellSize / 2,
+            y: y * cellSize + cellSize / 2,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6,
+            rotation: Math.random() * 0.2 - 0.1,
+            angle: Math.random() * Math.PI * 2,
+            life: 30 + Math.random() * 20,
+            size: Math.random() * 6 + 4
+        });
+    }
+
+    function animateExplosion() {
+        explosionFragments.forEach((fragment, index) => {
+            ctx.clearRect(fragment.x - fragment.size, fragment.y - fragment.size, fragment.size * 2, fragment.size * 2);
+
+            fragment.x += fragment.vx;
+            fragment.y += fragment.vy;
+            fragment.angle += fragment.rotation;
+
+            ctx.save();
+            ctx.translate(fragment.x, fragment.y);
+            ctx.rotate(fragment.angle);
+
+            ctx.beginPath();
+            ctx.strokeStyle = "cyan";
+            ctx.lineWidth = 1;
+            ctx.moveTo(-fragment.size, -fragment.size);
+            ctx.lineTo(fragment.size, 0);
+            ctx.lineTo(-fragment.size, fragment.size);
+            ctx.closePath();
+            ctx.stroke();
+
+            ctx.restore();
+
+            fragment.life--;
+            if (fragment.life <= 0) explosionFragments.splice(index, 1);
+        });
+
+        if (explosionFragments.length > 0) {
+            requestAnimationFrame(animateExplosion);
+        } else {
+            console.log("💥 Explosion complete.");
+            enemy = { x: Math.floor(Math.random() * gridSize), y: Math.floor(Math.random() * gridSize), direction: "RIGHT", health: 100 }; // ✅ Respawn enemy
+        }
+    }
+
+    animateExplosion();
+}
+
+
+
+//=============================================================EXPLOSION
+function triggerExplosion(x, y) {
+    let explosionParticles = [];
+    const numParticles = 10;  
+
+    for (let i = 0; i < numParticles; i++) {
+        explosionParticles.push({
+            x: x * cellSize + cellSize / 2,
+            y: y * cellSize + cellSize / 2,
+            dx: (Math.random() - 0.5) * 4,  
+            dy: (Math.random() - 0.5) * 4,  
+            size: Math.random() * 5 + 2,  
+            life: 20 + Math.random() * 10  
+        });
+    }
+
+    function animateExplosion() {
+        //ctx.clearRect(0, 0, canvas.width, canvas.height);
+        //drawGrid();
+
+        explosionParticles.forEach((particle, index) => {
+            ctx.beginPath();
+            ctx.fillStyle = `rgba(255, ${Math.random() * 255}, 0, ${particle.life / 30})`;
+            ctx.arc(particle.x, particle.y, particle.size, 0, 2 * Math.PI);
+            ctx.fill();
+
+            particle.x += particle.dx;
+            particle.y += particle.dy;
+            particle.life--;
+
+            if (particle.life <= 0) explosionParticles.splice(index, 1);
+        });
+
+        if (explosionParticles.length > 0) {
+            requestAnimationFrame(animateExplosion);
+        }
+    }
+
+    animateExplosion();
+}
+
+
+//=============================================================
+    //  WALLS
+    let walls = new Set(); // Store walls as a set for fast collision checks
+    const numWalls = 5; // Change this to add more or fewer walls
+    function drawWall(x, y) {
+        ctx.fillStyle = "red";
+        ctx.shadowColor = "darkred";
+        ctx.shadowBlur = 15;
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+    }
+
+    function updateHealthBar() {
+        const healthBar = document.getElementById("enemyHealthBar");
+        let healthPercentage = Math.max(0, (enemy.health / 100) * 100); // Ensure it's never negative
+        healthBar.style.width = healthPercentage + "%";
+
+        // Change color based on health level
+        if (enemy.health > 60) {
+            healthBar.style.background = "linear-gradient(to right, red, orange, yellow)";
+        } else if (enemy.health > 30) {
+            healthBar.style.background = "linear-gradient(to right, darkorange, orange)";
+        } else {
+            healthBar.style.background = "linear-gradient(to right, darkred, red)";
+        }
+    }
+
+
+
+    function startNextLevel() {
+      clearInterval(gameLoop);
+      resetGame(true);
+    }
+    function showGameOverMessage() {
+      gameOverMessage.style.display = "block";
+    }
+    if (gameOver) {
+      triggerExplosion(player.x, player.y);
+      showGameOverMessage();
+    }
+
+
+    function startGameLoop() {
+    if (gameLoop) clearInterval(gameLoop);
+    console.log("gameLoop fired");
+
+    gameLoop = setInterval(() => {
+        movePlayer();
+        moveEnemy(true); // Change to false for the standard chaser, true for smart chaser
+        updateCanvas();
+    }, gameSpeed);
+    }
+
+
+    /*********************
+     * ENTRY POINT
+     *********************/
+    resetGame();
+  </script>
+</body>
+</html>

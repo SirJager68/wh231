@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+  <title>Fritz’s Haunted Forest: 1986</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      background: #000;
+      height: 100%;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas {
+      width: 800px;
+      height: 600px;
+      image-rendering: pixelated;
+      border: 2px solid #0f0;
+      box-shadow: 0 0 18px #060;
+    }
+    #title {
+      position: fixed;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: "Press Start 2P", monospace;
+      font-size: 16px;
+      letter-spacing: 2px;
+      color: #63e663;
+      text-shadow: 0 0 6px #0f0, 0 0 14px #090, 2px 2px 0 #020;
+      animation: flicker 2.5s infinite;
+      pointer-events: none;
+    }
+    @keyframes flicker {
+      0%,19%,21%,23%,25%,54%,56%,100%{opacity:1}
+      20%,24%,55%{opacity:.65}
+    }
+    #hint {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font: 12px "Courier New", monospace;
+      color: #7bd;
+      opacity: .8;
+      text-shadow: 0 0 6px #048;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="title">FRITZ’S HAUNTED FOREST</div>
+  <div id="hint">WASD move · Map demo</div>
+
+  <script>
+  (function(){
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+    // === VIEWPORT ===
+    const VIEW = 1024;
+    const DPR = Math.min(devicePixelRatio || 1, 2);
+    canvas.width  = VIEW * DPR;
+    canvas.height = VIEW * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const VIEW_W = VIEW, VIEW_H = VIEW;
+    const cx = VIEW_W / 2, cy = VIEW_H / 2;
+
+    // === PLAYER ===
+    const player = { x: 512, y: 512, vx: 0, vy: 0, facing: 0 };
+
+    // === INPUT ===
+    const keys = new Set();
+    addEventListener("keydown", e => {
+      const k = e.key.toLowerCase();
+      if (["w","a","s","d"].includes(k)) e.preventDefault();
+      keys.add(k);
+    });
+    addEventListener("keyup", e => keys.delete(e.key.toLowerCase()));
+
+    // === MAP ===
+    const TILE_SIZE = 32;
+    let mapData = null, mapImage = null;
+
+    async function loadMap() {
+      const res = await fetch("ftest.json");
+      mapData = await res.json();
+
+      const tileset = mapData.tilesets[0];
+      const layer = mapData.layers.find(l => l.name.toLowerCase() === "ground" || l.type === "tilelayer");
+      if (!layer) { console.error("No valid tile layer found!"); return; }
+
+      const tilesetImage = new Image();
+      tilesetImage.src = tileset.image;
+      await new Promise(r => tilesetImage.onload = r);
+
+      // Pre-render entire map to offscreen canvas
+      const off = document.createElement("canvas");
+      off.width = mapData.width * TILE_SIZE;
+      off.height = mapData.height * TILE_SIZE;
+      const octx = off.getContext("2d");
+
+      const cols = tileset.imagewidth / TILE_SIZE;
+
+      for (let y = 0; y < mapData.height; y++) {
+        for (let x = 0; x < mapData.width; x++) {
+          const gid = layer.data[y * mapData.width + x];
+          if (gid === 0) continue;
+          const tileId = gid - tileset.firstgid;
+          const sx = (tileId % cols) * TILE_SIZE;
+          const sy = Math.floor(tileId / cols) * TILE_SIZE;
+          octx.drawImage(tilesetImage, sx, sy, TILE_SIZE, TILE_SIZE, x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        }
+      }
+
+      mapImage = off;
+      console.log("Map cached:", mapData.width, "x", mapData.height);
+    }
+
+    loadMap();
+
+    // === GAME LOOP ===
+    let last = performance.now();
+    function tick(now){
+      const dt = Math.min(50, now - last);
+      last = now;
+
+      // Movement
+      let ax=0, ay=0;
+      if(keys.has("w")) ay -= 1;
+      if(keys.has("s")) ay += 1;
+      if(keys.has("a")) ax -= 1;
+      if(keys.has("d")) ax += 1;
+      if(ax||ay){const len=Math.hypot(ax,ay); ax/=len; ay/=len;}
+
+      const ACCEL=0.3,FRICTION=0.85,MAX_SPEED=4;
+      player.vx += ax * ACCEL;
+      player.vy += ay * ACCEL;
+      player.vx *= FRICTION;
+      player.vy *= FRICTION;
+      const spd=Math.hypot(player.vx,player.vy);
+      if(spd>MAX_SPEED){
+        player.vx = (player.vx/spd)*MAX_SPEED;
+        player.vy = (player.vy/spd)*MAX_SPEED;
+      }
+      player.x += player.vx;
+      player.y += player.vy;
+      if(spd>0.05) player.facing=Math.atan2(player.vy,player.vx);
+
+      render();
+      requestAnimationFrame(tick);
+    }
+
+    // === RENDER ===
+    function render(){
+      ctx.fillStyle="#000";
+      ctx.fillRect(0,0,VIEW_W,VIEW_H);
+
+      if(mapImage){
+        const mapW = mapImage.width;
+        const mapH = mapImage.height;
+        const startX = player.x - VIEW_W/2;
+        const startY = player.y - VIEW_H/2;
+        const sx = ((startX % mapW) + mapW) % mapW;
+        const sy = ((startY % mapH) + mapH) % mapH;
+        ctx.drawImage(mapImage, -sx, -sy);
+        if (sx > 0) ctx.drawImage(mapImage, mapW - sx, -sy);
+        if (sy > 0) ctx.drawImage(mapImage, -sx, mapH - sy);
+      }
+
+      // Player
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(player.facing);
+      ctx.fillStyle="#89eaff";
+      ctx.fillRect(-4,-4,8,8);
+      ctx.fillStyle="#4ff";
+      ctx.fillRect(3,-2,3,4);
+      ctx.restore();
+
+      // Scanlines + vignette
+      ctx.globalAlpha=0.06;
+      ctx.fillStyle="#0f4";
+      for(let y=0;y<VIEW_H;y+=2) ctx.fillRect(0,y,VIEW_W,1);
+      ctx.globalAlpha=1;
+      const v=ctx.createRadialGradient(cx,cy,VIEW_W/3,cx,cy,VIEW_W/1.1);
+      v.addColorStop(0,"rgba(0,0,0,0)");
+      v.addColorStop(1,"rgba(0,0,0,0.8)");
+      ctx.fillStyle=v; ctx.fillRect(0,0,VIEW_W,VIEW_H);
+    }
+
+    requestAnimationFrame(tick);
+  })();
+  </script>
+</body>
+</html>

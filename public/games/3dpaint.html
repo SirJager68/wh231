@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Paint Program (Browser Module)</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      color: #0f0;
+      font-family: monospace;
+    }
+    #ui {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 10;
+    }
+    input[type="color"] {
+      width: 40px;
+      height: 40px;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    🎨 <input type="color" id="colorPicker" value="#ff0000">
+    <button id="clearBtn">Clear</button>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js';
+    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.157.0/examples/jsm/controls/OrbitControls.js';
+
+    // === Scene Setup ===
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // === Lighting ===
+    const light = new THREE.PointLight(0xffffff, 1);
+    light.position.set(3, 3, 5);
+    scene.add(light);
+
+    // === Paintable Object ===
+    const sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(1.5, 64, 64),
+      new THREE.MeshStandardMaterial({ color: 0xffffff })
+    );
+    scene.add(sphere);
+
+    // === Camera & Controls ===
+    camera.position.z = 4;
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.enablePan = false;
+    controls.minDistance = 3;
+    controls.maxDistance = 6;
+
+    // === Painting ===
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const colorPicker = document.getElementById('colorPicker');
+    let painting = false;
+
+    document.addEventListener('mousedown', () => (painting = true));
+    document.addEventListener('mouseup', () => (painting = false));
+    document.addEventListener('mousemove', (e) => {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      if (painting) paintAtMouse();
+    });
+
+    function paintAtMouse() {
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObject(sphere);
+      if (intersects.length > 0) {
+        const point = intersects[0].point;
+        const paintDot = new THREE.Mesh(
+          new THREE.SphereGeometry(0.03, 8, 8),
+          new THREE.MeshBasicMaterial({ color: colorPicker.value })
+        );
+        paintDot.position.copy(point);
+        scene.add(paintDot);
+      }
+    }
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      for (let i = scene.children.length - 1; i >= 0; i--) {
+        const obj = scene.children[i];
+        if (obj !== sphere && obj !== light) scene.remove(obj);
+      }
+    });
+
+    // === Render Loop ===
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // === Resize Handling ===
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

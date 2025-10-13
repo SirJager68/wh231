@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gridrunner Vector with Retro Grid</title>
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    canvas {
+      border: 2px solid cyan;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = 800;
+    canvas.height = 600;
+
+    let player = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      angle: 0,
+      speed: 0,
+      maxSpeed: 4,
+      acceleration: 0.1,
+      friction: 0.98,
+      trail: [],
+      collisionTrail: []  // New array to store collision points
+    };
+
+    let enemy = {
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      angle: Math.random() * Math.PI * 2,
+      speed: 2.5,
+      turnSpeed: 0.05,
+      trail: [],
+      health: 100,
+      maxHealth: 100
+    };
+
+    const config = {
+        turningMode: 'instant', // Options: 'instant' or 'continuous'
+        turnAngle: Math.PI / 2, // For instant turns (90° per key press)
+        continuousTurnRate: 0.08 // For continuous turning per frame
+    };
+
+    let keys = {};
+        document.addEventListener("keydown", (e) => {
+    // Handle continuous input (acceleration)
+    if (e.key === "ArrowUp") {
+        keys[e.key] = true;
+    }
+    
+    // Instant turning: check for ArrowLeft/ArrowRight only once
+    if (config.turningMode === 'instant') {
+        if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.repeat) {
+        if (e.key === "ArrowLeft") {
+            player.angle -= config.turnAngle;
+        } else if (e.key === "ArrowRight") {
+            player.angle += config.turnAngle;
+        }
+        }
+    } else {
+        // For continuous turning, simply record the key state
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        keys[e.key] = true;
+        }
+    }
+    });
+
+    document.addEventListener("keyup", (e) => {
+    // Clear key state for continuous actions
+    if (e.key === "ArrowUp" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        keys[e.key] = false;
+    }
+    });
+
+
+    // Explosion particles array and functions remain the same
+    let explosionParticles = [];
+
+    function createExplosion(x, y) {
+      let numParticles = 30;
+      for (let i = 0; i < numParticles; i++) {
+        let particleType = Math.random() < 0.5 ? "triangle" : "line";
+        explosionParticles.push({
+          x: x,
+          y: y,
+          angle: Math.random() * Math.PI * 2,
+          speed: Math.random() * 3 + 1,
+          radius: Math.random() * 3 + 2,
+          opacity: 1,
+          life: Math.random() * 30 + 30, // life in frames
+          type: particleType
+        });
+      }
+    }
+
+    function updateExplosionParticles() {
+      for (let i = explosionParticles.length - 1; i >= 0; i--) {
+        let p = explosionParticles[i];
+        p.x += Math.cos(p.angle) * p.speed;
+        p.y += Math.sin(p.angle) * p.speed;
+        p.life--;
+        p.opacity = p.life / 60; // fade out effect
+        if (p.life <= 0) {
+          explosionParticles.splice(i, 1);
+        }
+      }
+    }
+
+    function drawExplosionParticles() {
+      explosionParticles.forEach(p => {
+        ctx.globalAlpha = p.opacity;
+        ctx.fillStyle = "orange";
+        ctx.strokeStyle = "orange";
+        if (p.type === "triangle") {
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.angle);
+          ctx.beginPath();
+          ctx.moveTo(0, -p.radius);
+          ctx.lineTo(p.radius, p.radius);
+          ctx.lineTo(-p.radius, p.radius);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        } else if (p.type === "line") {
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.angle);
+          ctx.beginPath();
+          ctx.moveTo(-p.radius, 0);
+          ctx.lineTo(p.radius, 0);
+          ctx.stroke();
+          ctx.restore();
+        }
+      });
+      ctx.globalAlpha = 1;
+    }
+
+    // New function: drawGrid draws a retro light grid in the background
+    function drawGrid() {
+      const gridSpacing = 40;
+      ctx.strokeStyle = "rgba(0, 255, 255, 0.1)";
+      ctx.lineWidth = 1;
+      // Draw vertical grid lines
+      for (let x = 0; x <= canvas.width; x += gridSpacing) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      // Draw horizontal grid lines
+      for (let y = 0; y <= canvas.height; y += gridSpacing) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+    }
+
+
+    function movePlayer() {
+        // Accelerate if ArrowUp is held down
+        if (keys["ArrowUp"]) {
+            player.speed += player.acceleration;
+            if (player.speed > player.maxSpeed) player.speed = player.maxSpeed;
+        }
+        
+        // Only apply continuous turning if the mode is set to 'continuous'
+        if (config.turningMode === 'continuous') {
+            if (keys["ArrowLeft"]) player.angle -= config.continuousTurnRate;
+            if (keys["ArrowRight"]) player.angle += config.continuousTurnRate;
+        }
+        
+        // Update the player's position
+        player.x += Math.cos(player.angle) * player.speed;
+        player.y += Math.sin(player.angle) * player.speed;
+        player.speed *= player.friction;
+        
+        // Wrap around screen and manage trail as before
+        if (player.x < 0) player.x = canvas.width;
+        if (player.x > canvas.width) player.x = 0;
+        if (player.y < 0) player.y = canvas.height;
+        if (player.y > canvas.height) player.y = 0;
+        
+        player.trail.push({ x: player.x, y: player.y, opacity: 1 });
+        if (player.trail.length > 600) player.trail.shift();
+        // Also push the point into a collision array with a lifetime (e.g., 60 frames).
+        player.collisionTrail.push({ x: player.x, y: player.y, life: 60 });
+    }
+
+
+    function moveEnemy() {
+      if (enemy.respawning) return;
+      // Calculate the chasing vector (toward the player)
+      let chaseDx = player.x - enemy.x;
+      let chaseDy = player.y - enemy.y;
+      let chaseVector = { x: chaseDx, y: chaseDy };
+
+      // Calculate an avoidance vector from player's trail points within a threshold distance
+      let avoidanceVector = { x: 0, y: 0 };
+      let threshold = 20; // adjust the threshold as needed
+      player.trail.forEach((pt) => {
+        let dx = enemy.x - pt.x;
+        let dy = enemy.y - pt.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < threshold && dist > 0) {
+          // Repulsion is stronger the closer the enemy is to the trail point
+          let weight = (threshold - dist) / threshold;
+          avoidanceVector.x += (dx / dist) * weight;
+          avoidanceVector.y += (dy / dist) * weight;
+        }
+      });
+
+      // Combine the chase and avoidance vectors with adjustable weights
+      let chaseWeight = 1;
+      let avoidanceWeight = 2;
+      let combinedVector = {
+        x: chaseVector.x * chaseWeight + avoidanceVector.x * avoidanceWeight,
+        y: chaseVector.y * chaseWeight + avoidanceVector.y * avoidanceWeight
+      };
+
+      let targetAngle = Math.atan2(combinedVector.y, combinedVector.x);
+      let angleDiff = targetAngle - enemy.angle;
+      if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+      enemy.angle += angleDiff * enemy.turnSpeed;
+
+      enemy.x += Math.cos(enemy.angle) * enemy.speed;
+      enemy.y += Math.sin(enemy.angle) * enemy.speed;
+
+      // Wrap around screen
+      if (enemy.x < 0) enemy.x = canvas.width;
+      if (enemy.x > canvas.width) enemy.x = 0;
+      if (enemy.y < 0) enemy.y = canvas.height;
+      if (enemy.y > canvas.height) enemy.y = 0;
+
+      enemy.trail.push({ x: enemy.x, y: enemy.y, opacity: 1 });
+      if (enemy.trail.length > 100) enemy.trail.shift();
+    }
+
+    function updateCollisionTrail() {
+        // Decrement the lifetime for each collision point and remove expired ones.
+        player.collisionTrail = player.collisionTrail.filter(point => {
+            point.life--;
+            return point.life > 0;
+        });
+    }
+
+    // Use the collision trail for damage checks:
+    function checkEnemyTrailCollision() {
+        player.collisionTrail.forEach((point) => {
+            let dx = enemy.x - point.x;
+            let dy = enemy.y - point.y;
+            let distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < 5) {  // Adjust collision radius as needed
+            enemy.health -= 5;
+            // Optionally, set point.life = 0 here so it only counts once.
+            point.life = 0;
+            if (enemy.health <= 0) {
+                enemyExplodes(enemy.x, enemy.y);
+            }
+            }
+        });
+    }
+
+    function enemyExplodes(x, y) {
+      console.log("💥 Enemy Explosion at", x, y);
+      createExplosion(x, y);
+      // Respawn enemy after explosion
+      enemy = { 
+        x: Math.random() * canvas.width, 
+        y: Math.random() * canvas.height, 
+        angle: Math.random() * Math.PI * 2, 
+        speed: 2.5, 
+        turnSpeed: 0.05, 
+        trail: [], 
+        health: 100, 
+        maxHealth: 100 
+      };
+    }
+    let svgPathString = "M 10 10 L 30 10 L 30 30 L 10 30 Z";
+    let playerShape = new Path2D(svgPathString);
+    function drawPlayer() {
+      ctx.save();
+      ctx.translate(player.x, player.y);
+      ctx.rotate(player.angle);
+      ctx.strokeStyle = "cyan";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-10, -5);
+      ctx.lineTo(10, 0);
+      ctx.lineTo(-10, 5);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawEnemy() {
+      ctx.save();
+      ctx.translate(enemy.x, enemy.y);
+      ctx.rotate(enemy.angle);
+      ctx.strokeStyle = "red";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-10, -5);
+      ctx.lineTo(10, 0);
+      ctx.lineTo(-10, 5);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+
+      drawEnemyHealthBar();
+    }
+
+    function drawEnemyHealthBar() {
+      let barWidth = 40;
+      let barHeight = 5;
+      let healthRatio = enemy.health / enemy.maxHealth;
+      let barX = enemy.x - barWidth / 2;
+      let barY = enemy.y - 15;
+      ctx.fillStyle = "black";
+      ctx.fillRect(barX, barY, barWidth, barHeight);
+      ctx.fillStyle = healthRatio > 0.5 ? "lime" : healthRatio > 0.2 ? "yellow" : "red";
+      ctx.fillRect(barX, barY, barWidth * healthRatio, barHeight);
+    }
+
+    function drawTrail(trail, color) {
+      trail.forEach((pos) => {
+        ctx.globalAlpha = pos.opacity;
+        ctx.fillStyle = color;
+        ctx.fillRect(pos.x, pos.y, 2, 2);
+        pos.opacity *= 0.97;
+      });
+      ctx.globalAlpha = 1;
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Draw the retro grid as the background
+      drawGrid();
+      movePlayer();
+      moveEnemy();
+      updateCollisionTrail();  // Update collision lifetimes each frame
+      checkEnemyTrailCollision();
+      updateExplosionParticles();
+      drawTrail(player.trail, "cyan");
+      drawTrail(enemy.trail, "red");
+      drawPlayer();
+      drawEnemy();
+      drawExplosionParticles();
+      requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+  </script>
+</body>
+</html>

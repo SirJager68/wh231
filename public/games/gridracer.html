@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vector Racer 1986 (Tuned)</title>
+<style>
+  html,body{margin:0;overflow:hidden;background:#001133;}
+  canvas{display:block;margin:auto;background:#001133;}
+  #hud{
+    position:fixed;top:10px;left:10px;
+    font-family:monospace;color:#0ff;font-size:13px;
+    text-shadow:0 0 6px #0ff;
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">↑ accelerate  ← → steer  R restart</div>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+canvas.width=innerWidth;canvas.height=innerHeight;
+let w=canvas.width,h=canvas.height;
+window.addEventListener("resize",()=>{canvas.width=w=innerWidth;canvas.height=h=innerHeight;});
+
+const keys={};
+window.addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true);
+window.addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+
+// === Player setup ===
+const player={
+  x:w/2, y:h/2+150, angle:-Math.PI/2,
+  speed:0, accel:0.08, maxSpeed:6, friction:0.98,
+  turnRate:0.05, trail:[]
+};
+
+// === Track ===
+const outer=new Path2D();
+outer.moveTo(200,100); outer.lineTo(w-200,100);
+outer.lineTo(w-200,h-100); outer.lineTo(200,h-100); outer.closePath();
+
+const inner=new Path2D();
+inner.moveTo(350,250); inner.lineTo(w-350,250);
+inner.lineTo(w-350,h-250); inner.lineTo(350,h-250); inner.closePath();
+
+function drawTrack(){
+  ctx.lineWidth=6;
+  ctx.strokeStyle="rgba(0,255,255,0.5)";
+  ctx.stroke(outer);
+  ctx.strokeStyle="rgba(255,0,255,0.4)";
+  ctx.stroke(inner);
+}
+
+// === Grid ===
+function drawGrid(){
+  ctx.strokeStyle="rgba(0,255,255,0.07)";
+  ctx.lineWidth=1;
+  const s=60;
+  for(let x=0;x<w;x+=s){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+  for(let y=0;y<h;y+=s){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+}
+
+// === Movement ===
+function movePlayer() {
+  // accelerate
+  if (keys["arrowup"] || keys["w"]) {
+    player.speed += player.accel;
+    if (player.speed > player.maxSpeed) player.speed = player.maxSpeed;
+  } else {
+    player.speed *= player.friction;
+  }
+
+  // only steer when actually rolling
+  if (Math.abs(player.speed) > 0.2) {
+    let steer = 0;
+    if (keys["arrowleft"] || keys["a"]) steer = -1;
+    if (keys["arrowright"] || keys["d"]) steer = 1;
+
+    // Progressive steering sensitivity:
+    // - almost none when very slow
+    // - smooth mid-range
+    // - gentle at high speed
+    const normSpeed = Math.min(player.speed / player.maxSpeed, 1);
+    const steeringStrength =
+      (0.3 + 0.7 * normSpeed) * (1 - 0.5 * normSpeed); 
+    // yields about 0.3 strength when creeping, ~0.35 mid-speed, ~0.25 top
+
+    player.angle += steer * player.turnRate * 3.0 * steeringStrength;
+  }
+
+  // move & small lateral drift
+  player.x += Math.cos(player.angle) * player.speed;
+  player.y += Math.sin(player.angle) * player.speed;
+  player.x += Math.cos(player.angle + Math.PI / 2) * player.speed * 0.04;
+  player.y += Math.sin(player.angle + Math.PI / 2) * player.speed * 0.04;
+
+  // off-track slowdown
+  if (
+    !ctx.isPointInPath(outer, player.x, player.y) ||
+    ctx.isPointInPath(inner, player.x, player.y)
+  ) {
+    player.speed *= 0.85;
+    ctx.strokeStyle = "rgba(255,50,50,0.5)";
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, 10, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // trail
+  player.trail.push({ x: player.x, y: player.y, life: 100 });
+  if (player.trail.length > 800) player.trail.shift();
+}
+
+
+// === Draw Car & Trail ===
+function drawTrail(){
+  for(const t of player.trail){
+    ctx.fillStyle=`rgba(0,255,255,${t.life/100})`;
+    ctx.fillRect(t.x,t.y,2,2);
+    t.life-=1.5;
+  }
+  player.trail=player.trail.filter(t=>t.life>0);
+}
+
+function drawPlayer(){
+  ctx.save();
+  ctx.translate(player.x,player.y);
+  ctx.rotate(player.angle);
+  ctx.strokeStyle="#0ff"; ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(-10,-6);
+  ctx.lineTo(14,0);
+  ctx.lineTo(-10,6);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+}
+
+// === Game Loop ===
+function loop(){
+  ctx.fillStyle="rgba(0,17,51,0.4)";
+  ctx.fillRect(0,0,w,h);
+  drawGrid(); drawTrack();
+  movePlayer(); drawTrail(); drawPlayer();
+  if(keys["r"]){player.x=w/2;player.y=h/2+150;player.speed=0;player.angle=-Math.PI/2;player.trail=[];}
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
