@@ -163,16 +163,18 @@
             }
         }
 
+        /* === MOBILE CONTROLS === */
         #joystick {
             position: fixed;
-            bottom: 40px;
-            left: 40px;
-            width: 120px;
-            height: 120px;
+            bottom: 6vh;
+            left: 5vw;
+            width: 140px;
+            height: 140px;
             border-radius: 50%;
             border: 2px solid rgba(100, 255, 100, 0.3);
             background: rgba(0, 40, 0, 0.3);
             touch-action: none;
+            z-index: 10;
         }
 
         #stickDot {
@@ -185,36 +187,70 @@
             border-radius: 50%;
             transform: translate(-50%, -50%);
             pointer-events: none;
-            transition: 0.05s;
+        }
+
+        #joystick {
+            bottom: 5vh;
+            left: 6vw;
+            width: 140px;
+            height: 140px;
+        }
+
+        #fireBtn {
+            bottom: 5vh;
+            right: 6vw;
+            width: 90px;
+            height: 90px;
         }
 
 
         #fireBtn {
             position: fixed;
-            bottom: 60px;
-            right: 50px;
-            width: 80px;
-            height: 80px;
+            bottom: 6vh;
+            right: 6vw;
+            width: 90px;
+            height: 90px;
             border-radius: 50%;
             background: rgba(255, 64, 64, 0.6);
             color: white;
-            font-size: 30px;
+            font-size: 34px;
             display: flex;
             align-items: center;
             justify-content: center;
-            touch-action: none;
             user-select: none;
+            touch-action: none;
+            z-index: 10;
+            box-shadow: 0 0 15px rgba(255, 64, 64, 0.4);
         }
 
         #fireBtn:active {
             background: rgba(255, 0, 0, 0.8);
+            transform: scale(0.96);
         }
+
 
         canvas {
             width: 100vw;
             height: 100vh;
             touch-action: none;
             /* stops scrolling or pinch zoom on mobile */
+        }
+
+        @media (max-width: 900px) {
+            #joystick {
+                bottom: 8vh;
+                /* lower on screen */
+                left: 5vw;
+                width: 140px;
+                height: 140px;
+            }
+
+            #fireBtn {
+                bottom: 8vh;
+                right: 5vw;
+                width: 90px;
+                height: 90px;
+            }
         }
     </style>
 </head>
@@ -243,7 +279,7 @@
 
 
     <canvas id="game"></canvas>
-    <audio id="bgMusic" src="Pixel Ghosts.mp3" loop preload="auto"></audio>
+    <audio id="bgMusic" src="Shadows Whisper.mp3" loop preload="auto"></audio>
 
     <div id="title">FRITZ’S HAUNTED FOREST</div>
 
@@ -252,35 +288,26 @@
         <div class="bar"><span id="hpFill" style="width:100%"></span></div>
         <div class="row">🪨 Rocks: <span id="rocks">∞</span> &nbsp; ⭐ Score: <span id="score">0</span></div>
         <div class="row">🏚️ House Waves: <span id="wave">0</span></div>
+        <div class="row">🔱 Level: <span id="level">1</span></div>
+
     </div>
     <div id="help">WASD move · Left Mouse = throw rock toward cursor · Stay on green trail · World wraps</div>
 
     <script>
         document.body.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
 
+        // ✅ Detect mobile first
+        const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+        if (!isMobile) {
+            document.getElementById('joystick').style.display = 'none';
+            document.getElementById('fireBtn').style.display = 'none';
+        }
+
         (function () {
             const canvas = document.getElementById('game');
             const ctx = canvas.getContext('2d');
-            let W, H; const DPR = Math.min(devicePixelRatio || 1, 2);
-
-            function fit() {
-                const cssW = window.innerWidth;
-                const cssH = window.innerHeight;
-                W = canvas.width = Math.floor(cssW * DPR);
-                H = canvas.height = Math.floor(cssH * DPR);
-
-                ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-
-                // Only center if player exists
-                if (typeof player !== "undefined") {
-                    player.x = WORLD / 2;
-                    player.y = WORLD / 2;
-                }
-            }
-
-
-
-            addEventListener('resize', fit, { passive: true });
+            let W, H;
+            const DPR = Math.min(devicePixelRatio || 1, 2);
 
             // ===== World Settings =====
             const WORLD = 1024;
@@ -290,11 +317,43 @@
             const healthPacks = [];
             let levelTransition = false;
 
+            const player = {
+                x: WORLD / 2,
+                y: WORLD / 3,
+                hp: 100,
+                maxHp: 100,
+                speed: 2.0,
+                facing: 0
+            };
 
+            function fit() {
+                const cssW = window.innerWidth;
+                const cssH = window.innerHeight;
+                W = canvas.width = Math.floor(cssW * DPR);
+                H = canvas.height = Math.floor(cssH * DPR);
+                ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
-            const player = { x: WORLD / 2, y: WORLD / 3, hp: 100, maxHp: 100, speed: 2.0, facing: 0 };
+                // ✅ Optional: only recenter if desired
+                // player.x = WORLD / 2;
+                // player.y = WORLD / 3;
+            }
+
             let score = 0;
+            let currentLevel = 1;
+            const splats = [];
+            const GNOME_ALERT_RADIUS = 220;   // how close before they start to react
+            const GNOME_ATTACK_RADIUS = 150;  // when they actually start moving toward you
+            // === Fog of War ===
+            const fogRadius = 160;     // how far the player can see
+            const fogFade = 120;     // how soft the edge is
+            let lightLevel = 1.0;          // 1 = normal light, 0 = pitch black
+            let lightFlickerTimer = 0;     // counts down flicker duration
+            let nextLightsOutTime = 0;     // schedule next event
+
+
             fit();
+            addEventListener("resize", fit, { passive: true });
+
 
             // ===== Splash Screen =====
             const splashScreen = document.getElementById('splashScreen');
@@ -321,15 +380,14 @@
             });
 
 
-
-
+            // ===== AUDIO
             // ===== Background Music =====
             const bgMusic = document.getElementById("bgMusic");
 
             // Unlock audio on first user interaction (mobile browsers require it)
             document.addEventListener('click', () => {
                 if (bgMusic.paused) {
-                    bgMusic.volume = 0.4;
+                    bgMusic.volume = 0.3;
                     bgMusic.play().catch(() => { });
                 }
             }, { once: true });
@@ -340,7 +398,7 @@
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'square';
-                osc.frequency.value = 400 + Math.random() * 100;
+                osc.frequency.value = 300 + Math.random() * 10;
                 gain.gain.value = 0.15;
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
@@ -362,6 +420,47 @@
                 osc.stop(audioCtx.currentTime + 0.3);
             }
 
+            function playSplatSound() {
+                console.log("Splat sound");
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = 350 + Math.random() * 80;
+                gain.gain.value = 0.35;
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+                osc.stop(audioCtx.currentTime + 0.25);
+            }
+
+            function playAmbient() {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = 40 + Math.random() * 10; // deep rumble
+                gain.gain.value = 0.04;
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 20);
+                osc.stop(audioCtx.currentTime + 20);
+            }
+            setInterval(playAmbient, 10000 + Math.random() * 5000);
+
+            function playWhisper() {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.value = 300 + Math.random() * 300;
+                gain.gain.value = 0.02;
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.8);
+                osc.stop(audioCtx.currentTime + 0.8);
+            }
+            setInterval(playWhisper, 8000 + Math.random() * 7000);
 
 
 
@@ -472,37 +571,37 @@
             });
 
             // ===== MOBILE BURST FIRING =====
- // ===== MOBILE AUTO-AIM BURST SHOOTING =====
-canvas.addEventListener('touchstart', e => {
-    const t = e.touches[0];
-    // Right half starts burst
-    if (t.clientX > window.innerWidth / 2 && !mobileBurstActive && burstCooldown <= 0) {
-        mobileBurstActive = true;
-        burstShotsRemaining = 5;
-        burstCooldown = 1500;
-    }
-});
+            // ===== MOBILE AUTO-AIM BURST SHOOTING =====
+            canvas.addEventListener('touchstart', e => {
+                const t = e.touches[0];
+                // Right half starts burst
+                if (t.clientX > window.innerWidth / 2 && !mobileBurstActive && burstCooldown <= 0) {
+                    mobileBurstActive = true;
+                    burstShotsRemaining = 5;
+                    burstCooldown = 1500;
+                }
+            });
 
 
-// === Find nearest bad gnome (auto-aim target) ===
-function getAutoAimTarget() {
-    let closest = null;
-    let bestDist = Infinity;
+            // === Find nearest bad gnome (auto-aim target) ===
+            function getAutoAimTarget() {
+                let closest = null;
+                let bestDist = Infinity;
 
-    // find the nearest "bad" gnome
-    for (const g of gnomes) {
-        if (!g.bad) continue;
-        const d2 = torusDist2(player.x, player.y, g.x, g.y);
-        if (d2 < bestDist) {
-            bestDist = d2;
-            closest = g;
-        }
-    }
+                // find the nearest "bad" gnome
+                for (const g of gnomes) {
+                    if (!g.bad) continue;
+                    const d2 = torusDist2(player.x, player.y, g.x, g.y);
+                    if (d2 < bestDist) {
+                        bestDist = d2;
+                        closest = g;
+                    }
+                }
 
-    // fallback to the haunted house if no bad gnomes remain
-    if (!closest) closest = haunted;
-    return closest;
-}
+                // fallback to the haunted house if no bad gnomes remain
+                if (!closest) closest = haunted;
+                return closest;
+            }
 
 
 
@@ -595,8 +694,12 @@ function getAutoAimTarget() {
 
                 const cx = canvas.width / (2 * DPR);
                 const cy = canvas.height / (2 * DPR);
+
+                // Adjust aim for mobile offset
                 const dx = mx - cx;
                 const dy = my - cy;
+
+
                 const mag = Math.hypot(dx, dy) || 1;
                 const sp = 6.0;
 
@@ -618,13 +721,33 @@ function getAutoAimTarget() {
             // ===== Main Loop =====
             let last = performance.now();
             function tick(now) {
-                const dt = Math.min(50, now - last); last = now;
+                if (levelTransition) return; // stop updating or drawing during transitions
+                const dt = Math.min(50, now - last);
+                last = now;
                 const dtSec = dt / 1000;
 
+                // Update light flicker effect
+                // === Dynamic Lighting Control ===
+                const nowMs = performance.now();
+
+                // schedule next blackout every 10–20 seconds randomly
+                if (nowMs > nextLightsOutTime && lightFlickerTimer <= 0) {
+                    if (Math.random() < 0.01) { // small chance each frame
+                        lightFlickerTimer = 1000 + Math.random() * 2000; // 1–3 seconds blackout
+                        nextLightsOutTime = nowMs + 10000 + Math.random() * 10000; // 10–20s till next
+                    }
+                }
+
+                // dim light when flicker is active
+                if (lightFlickerTimer > 0) {
+                    lightLevel = Math.max(0, 0.2 + Math.sin(nowMs / 80) * 0.1); // quick erratic flicker
+                    lightFlickerTimer -= 16; // assuming ~60fps
+                } else {
+                    // slowly fade back to normal
+                    lightLevel += (1.0 - lightLevel) * 0.05;
+                }
 
 
-
-                // movement
                 // movement
                 let mx = 0, my = 0;
 
@@ -635,16 +758,6 @@ function getAutoAimTarget() {
                     my += moveStick.y;
                 }
 
-                // if (moveStick.active) {
-                //     const dx = moveStick.x - moveStick.startX;
-                //     const dy = moveStick.y - moveStick.startY;
-                //     const dist = Math.hypot(dx, dy);
-                //     if (dist > 10) {
-                //         const strength = Math.min(dist / 40, 1);
-                //         mx += (dx / dist) * strength;
-                //         my += (dy / dist) * strength;
-                //     }
-                // }
                 //--WASD`
                 if (keys.has('w')) my -= 1;
                 if (keys.has('s')) my += 1;
@@ -666,57 +779,100 @@ function getAutoAimTarget() {
                 player.facing = Math.atan2((mouse.y - H / 2), (mouse.x - W / 2));
 
                 const dTrail = distToTrail(player.x, player.y);
+
                 if (dTrail > TRAIL_THICKNESS) {
-                    player.hp = Math.max(0, player.hp - OFFTRAIL_DPS * dtSec);
+                    // ✅ Player is off the trail — slow and maybe damage
+                    player.speed = 1.0; // half normal speed
+                    player.hp = Math.max(0, player.hp - OFFTRAIL_DPS * dtSec); // optional: keep damage
+                } else {
+                    // ✅ Player is on the trail — restore normal speed
+                    player.speed = 2.0;
                 }
+
+                //--- fire button
+                const fireBtn = document.getElementById("fireBtn");
+                fireBtn.addEventListener("touchstart", e => {
+                    e.preventDefault();
+                    tryShoot(innerWidth * 0.7, innerHeight * 0.5);
+                });
+                fireBtn.addEventListener("mousedown", e => {
+                    e.preventDefault();
+                    tryShoot(innerWidth * 0.7, innerHeight * 0.5);
+                });
+                fireBtn.addEventListener("touchend", e => e.preventDefault());
+
 
                 // === Mobile burst shooting update ===
                 // === Mobile auto-aim burst update ===
-if (burstCooldown > 0) burstCooldown -= dt;
+                if (burstCooldown > 0) burstCooldown -= dt;
 
-if (mobileBurstActive && burstShotsRemaining > 0) {
-    if (shootCD <= 0) {
-        const target = getAutoAimTarget();
-        const dx = dWrap(target.x, player.x);
-        const dy = dWrap(target.y, player.y);
-        const mag = Math.hypot(dx, dy) || 1;
+                if (mobileBurstActive && burstShotsRemaining > 0) {
+                    if (shootCD <= 0) {
+                        const target = getAutoAimTarget();
+                        const dx = dWrap(target.x, player.x);
+                        const dy = dWrap(target.y, player.y);
+                        const mag = Math.hypot(dx, dy) || 1;
 
-        const sp = 6.0;
-        const vx = (dx / mag) * sp;
-        const vy = (dy / mag) * sp;
+                        const sp = 6.0;
+                        const vx = (dx / mag) * sp;
+                        const vy = (dy / mag) * sp;
 
-        playShootSound();
-        rocks.push({ x: player.x, y: player.y, vx, vy, life: 1200 });
+                        playShootSound();
+                        rocks.push({ x: player.x, y: player.y, vx, vy, life: 1200 });
 
-        burstShotsRemaining--;
-        shootCD = 120; // delay between each shot
-    }
-} else if (mobileBurstActive && burstShotsRemaining <= 0) {
-    mobileBurstActive = false;
-}
-
-
+                        burstShotsRemaining--;
+                        shootCD = 120; // delay between each shot
+                    }
+                } else if (mobileBurstActive && burstShotsRemaining <= 0) {
+                    mobileBurstActive = false;
+                }
 
                 // Gnome AI
+                // Gnome AI
                 for (const g of gnomes) {
-                    const dx = dWrap(player.x, g.x), dy = dWrap(player.y, g.y);
+                    const dx = dWrap(player.x, g.x);
+                    const dy = dWrap(player.y, g.y);
                     const m = Math.hypot(dx, dy) || 1;
+
                     if (g.bad) {
-                        if (m < 180) {
+                        const attackRange = 180;     // distance to start chasing
+                        const vibrateRange = 450;    // start vibrating within this distance
+
+                        // how close player is (0 = far, 1 = very close)
+                        const closeness = Math.min(1, Math.max(0, (vibrateRange - m) / vibrateRange));
+
+                        if (m < attackRange) {
+                            // same chase logic as before
                             const sp = 0.6 + Math.min(1.2, score / 600);
                             g.x = wrap(g.x + dx / m * sp);
                             g.y = wrap(g.y + dy / m * sp);
                         } else {
-                            g.x = wrap(g.x + (Math.random() - 0.5) * 0.5);
-                            g.y = wrap(g.y + (Math.random() - 0.5) * 0.5);
+                            // same random wandering, but scaled by how close the player is
+                            const baseJitter = 0.5;          // normal wandering amplitude
+                            const extraJitter = 2.0 * closeness; // extra trembling when closer
+                            const jitter = baseJitter + extraJitter;
+
+                            g.x = wrap(g.x + (Math.random() - 0.5) * jitter);
+                            g.y = wrap(g.y + (Math.random() - 0.5) * jitter);
+
+                            // subtle red flicker when they vibrate harder
+                            if (closeness > 0.6 && Math.random() < closeness * 0.2) {
+                                g.flash = 2;
+                            }
                         }
-                        if (m < 14) { player.hp = Math.max(0, player.hp - 20 * dtSec); }
+
+                        if (m < 14) {
+                            player.hp = Math.max(0, player.hp - 20 * dtSec);
+                        }
                     } else {
-                        if (Math.random() < 0.02) { const t = trail[(Math.random() * trail.length) | 0]; g.x = t.x; g.y = t.y; }
+                        // friendly gnomes still teleport sometimes
+                        if (Math.random() < 0.02) {
+                            const t = trail[(Math.random() * trail.length) | 0];
+                            g.x = t.x;
+                            g.y = t.y;
+                        }
                     }
                 }
-
-
 
                 // Haunted house waves
                 haunted.timer += dt;
@@ -753,10 +909,32 @@ if (mobileBurstActive && burstShotsRemaining > 0) {
                             g.hp -= 18;
                             r.life = 0;
                             if (g.hp <= 0) {
-                                if (g.bad) { score += 10; }
-                                else { score = Math.max(0, score - 5); }
+                                if (g.bad) score += 10;
+                                else score = Math.max(0, score - 5);
+
+                                // 💥 Spawn sticky splat
+
+                                const splatCount = 8 + Math.floor(Math.random() * 5);
+                                for (let p = 0; p < splatCount; p++) {
+                                    const angle = Math.random() * Math.PI * 2;
+                                    const dist = 3 + Math.random() * 5; // only a few pixels out
+                                    splats.push({
+                                        x: g.x + Math.cos(angle) * dist,
+                                        y: g.y + Math.sin(angle) * dist,
+                                        size: 1 + Math.random() * 2,
+                                        life: 600 + Math.random() * 400,
+                                        color: g.bad
+                                            ? (Math.random() < 0.3 ? '#ff2a2a' : '#cc0000') // red tones
+                                            : '#44ff44' // green goo for good gnomes
+                                    });
+                                }
+                                playSplatSound(); // 💀 add this line here
+
                                 gnomes.splice(j, 1);
                             }
+
+
+
                             break;
                         }
                     }
@@ -802,6 +980,11 @@ if (mobileBurstActive && burstShotsRemaining > 0) {
 
             // ===== Render =====
             function render(dTrail) {
+                if (Math.random() < 0.004) {
+                    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                    ctx.fillRect(0, 0, innerWidth, innerHeight);
+                }
+
                 ctx.clearRect(0, 0, innerWidth, innerHeight);
                 ctx.fillStyle = '#000';
                 ctx.fillRect(0, 0, innerWidth, innerHeight);
@@ -850,12 +1033,40 @@ if (mobileBurstActive && burstShotsRemaining > 0) {
                     ctx.fillRect(sx - 3, sy - 3, 6, 6);
                 }
 
+                // --- rocks
+                // --- rocks
                 ctx.fillStyle = '#ccc';
                 for (const r of rocks) {
-                    const dx = dWrap(r.x, player.x), dy = dWrap(r.y, player.y);
-                    const sx = cx + dx, sy = cy + dy;
+                    const dx = dWrap(r.x, player.x);
+                    const dy = dWrap(r.y, player.y);
+                    const sx = cx + dx;
+                    const sy = cy + dy;
                     ctx.fillRect(sx - 2, sy - 2, 4, 4);
                 }
+
+
+
+                // --- splats
+                // === Sticky Gore Splats ===
+                for (let i = splats.length - 1; i >= 0; i--) {
+                    const s = splats[i];
+                    s.life -= 16;
+                    const alpha = Math.max(0, s.life / 800);
+
+                    const sx = cx + dWrap(s.x, player.x);
+                    const sy = cy + dWrap(s.y, player.y);
+
+                    ctx.fillStyle = `${s.color}${Math.floor(alpha * 255)
+                        .toString(16)
+                        .padStart(2, '0')}`;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, s.size, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    if (s.life <= 0) splats.splice(i, 1);
+                }
+
+
 
                 // === Health Packs ===
                 for (const p of healthPacks) {
@@ -882,16 +1093,80 @@ if (mobileBurstActive && burstShotsRemaining > 0) {
                     ctx.restore();
                 }
 
+                // === Fog of War ===
+                const flicker = Math.sin(performance.now() / 200) * 10;
+                const fogRadius = (220 + flicker) * lightLevel; // radius shrinks in dark
+
+                const gradient = ctx.createRadialGradient(
+                    W / (2 * DPR),
+                    H / (2 * DPR),
+                    fogRadius * 0.5,
+                    W / (2 * DPR),
+                    H / (2 * DPR),
+                    fogRadius
+                );
+
+                // center transparency depends on light level
+                gradient.addColorStop(0, `rgba(0, 0, 0, ${1 - lightLevel})`);
+                gradient.addColorStop(1, `rgba(0, 0, 0, ${0.85 + (1 - lightLevel) * 0.15})`);
+
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, innerWidth, innerHeight);
 
 
+
+                // === Player ===
                 ctx.save();
                 ctx.translate(cx, cy);
+
                 ctx.rotate(player.facing);
                 ctx.fillStyle = '#7cf';
                 ctx.fillRect(-4, -4, 8, 8);
                 ctx.fillStyle = '#dff';
                 ctx.fillRect(3, -2, 3, 4);
                 ctx.restore();
+
+                if (player.hp < 30) {
+                    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 100);
+                    const glitchChance = 0.2 + (30 - player.hp) / 30 * 0.5; // higher chance when lower HP
+
+                    // --- red pulse fog
+                    ctx.fillStyle = `rgba(255,0,0,${0.15 * pulse})`;
+                    ctx.fillRect(0, 0, innerWidth, innerHeight);
+
+                    // --- occasional horizontal slice glitch
+                    if (Math.random() < glitchChance) {
+                        const slices = 6 + Math.floor(Math.random() * 6);
+                        for (let i = 0; i < slices; i++) {
+                            const y = Math.random() * innerHeight;
+                            const h = 4 + Math.random() * 8;
+                            const offset = (Math.random() - 0.5) * 40; // horizontal displacement
+                            const imgData = ctx.getImageData(0, y, innerWidth, h);
+                            ctx.putImageData(imgData, offset, y);
+                        }
+                    }
+
+                    // --- subtle RGB channel offset for "CRT" bleed
+                    if (Math.random() < 0.5) {
+                        ctx.globalCompositeOperation = "screen";
+                        ctx.globalAlpha = 0.15;
+                        ctx.drawImage(canvas, 1, 0); // red ghost
+                        ctx.globalAlpha = 0.15;
+                        ctx.drawImage(canvas, -1, 0); // blue ghost
+                        ctx.globalCompositeOperation = "source-over";
+                        ctx.globalAlpha = 1;
+                    }
+
+                    // --- static noise overlay
+                    const noiseDensity = 120;
+                    for (let n = 0; n < noiseDensity; n++) {
+                        ctx.fillStyle = `rgba(255,${50 + Math.random() * 50 | 0},${50 + Math.random() * 50 | 0},${Math.random() * 0.2})`;
+                        const x = Math.random() * innerWidth;
+                        const y = Math.random() * innerHeight;
+                        ctx.fillRect(x, y, 1, 1);
+                    }
+                }
+
 
                 if (dTrail > TRAIL_THICKNESS) {
                     ctx.strokeStyle = 'rgba(255,64,64,0.5)';
@@ -907,22 +1182,26 @@ if (mobileBurstActive && burstShotsRemaining > 0) {
                 haunted.timer = 0;
                 haunted.wave = 0;
                 gnomes.length = 0;
-                healthPacks.length = 0; // clear leftover packs
+                healthPacks.length = 0;
 
-                // visual message
-                ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                ctx.fillRect(0, 0, innerWidth, innerHeight);
-                ctx.fillStyle = '#6fef6f';
-                ctx.font = '22px "Press Start 2P", monospace';
-                ctx.textAlign = 'center';
-                ctx.fillText('CASTLE CLEANSED!', innerWidth / 2, innerHeight / 2 - 20);
-                ctx.font = '14px "Press Start 2P", monospace';
-                ctx.fillText('The forest grows quieter...', innerWidth / 2, innerHeight / 2 + 20);
+                levelTransition = true;
 
-                playPickupSound(); // satisfying ping
+                // 🔥 Use requestAnimationFrame to ensure message is drawn cleanly
+                requestAnimationFrame(() => {
+                    ctx.clearRect(0, 0, innerWidth, innerHeight);
+                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                    ctx.fillRect(0, 0, innerWidth, innerHeight);
+                    ctx.fillStyle = '#6fef6f';
+                    ctx.font = '22px "Press Start 2P", monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('CASTLE CLEANSED!', innerWidth / 2, innerHeight / 2 - 20);
+                    ctx.font = '14px "Press Start 2P", monospace';
+                    ctx.fillText('The forest grows quieter...', innerWidth / 2, innerHeight / 2 + 20);
+                    playPickupSound();
+                });
 
+                // 🕑 Wait, then restart next level
                 setTimeout(() => {
-                    // Generate new trail for next level
                     genTrail();
                     const last = trail[trail.length - 1];
                     haunted.x = last.x;
@@ -934,11 +1213,14 @@ if (mobileBurstActive && burstShotsRemaining > 0) {
                     gnomes.length = 0;
                     for (let i = 0; i < 24; i++) spawnGnomeNearTrail(20);
                     score += 100;
-                    levelTransition = false; // ✅ allow next transition again
+                    currentLevel++;
+                    document.getElementById('level').textContent = currentLevel;
+
+                    // ✅ Resume loop
+                    levelTransition = false;
+                    requestAnimationFrame(tick);
                 }, 2500);
-
             }
-
 
 
             function gameOver() {
