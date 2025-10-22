@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Simple Map Editor — Trail & Lair</title>
+<style>
+  :root{
+    --ui-bg:#0f1720;
+    --panel:#0b1220;
+    --accent:#9eff9e;
+    --muted:#98a0a8;
+    --canvas-bg:#071014;
+  }
+  body{
+    margin:0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background:var(--ui-bg);
+    color:#e6eef3;
+    display:flex;
+    height:100vh;
+    gap:12px;
+  }
+  .sidebar{
+    width:360px;
+    padding:18px;
+    background:linear-gradient(180deg,var(--panel),#07121a);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+    box-sizing:border-box;
+    overflow:auto;
+  }
+  h1{font-size:18px;margin:0 0 10px 0;color:var(--accent)}
+  label{display:block;margin-top:10px;font-size:13px;color:var(--muted)}
+  input[type="number"], select { width:100%; padding:8px; margin-top:6px; box-sizing:border-box; border-radius:6px; border:1px solid #16303a; background:#021218; color:#dff;}
+  .tools{display:flex;gap:8px;margin-top:10px}
+  .btn{padding:8px 12px;border-radius:8px;background:#02161a;border:1px solid #173235;color:var(--muted);cursor:pointer}
+  .btn.active{background:linear-gradient(180deg,#0f2a1f,#063328);color:var(--accent);border-color:#1f8c6b}
+  .footer{margin-top:18px;font-size:13px;color:var(--muted)}
+  #canvasWrap{flex:1;display:flex;align-items:center;justify-content:center;background:var(--canvas-bg);position:relative}
+  canvas{background:#061014; image-rendering:pixelated; box-shadow: 0 12px 30px rgba(0,0,0,0.6); border:6px solid #061a12}
+  .toolbar-row{display:flex;gap:8px;flex-wrap:wrap}
+  .small{padding:6px 8px;font-size:13px}
+  .meta{font-size:13px;color:var(--muted);margin-top:10px}
+  .hint{font-size:12px;color:#9aa6b2;margin-top:8px}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h1>Map Editor — Trail & Lair</h1>
+  <div class="meta">Draw a trail (paint tiles), place the lair (single marker). Save/Load JSON or export PNG.</div>
+
+  <label>Map size (tiles)</label>
+  <div style="display:flex;gap:6px">
+    <input id="mapW" type="number" value="40" min="8" max="200" />
+    <input id="mapH" type="number" value="30" min="8" max="200" />
+  </div>
+
+  <label>Tile size (px)</label>
+  <input id="tileSize" type="number" value="24" min="8" max="64" />
+
+  <label>Tools</label>
+  <div class="tools toolbar-row">
+    <button class="btn small active" id="tool-draw">✏️ Draw Trail</button>
+    <button class="btn small" id="tool-erase">🧽 Erase</button>
+    <button class="btn small" id="tool-lair">🏰 Place Lair</button>
+    <button class="btn small" id="tool-pan">🖐️ Pan</button>
+  </div>
+
+  <label>Tile Type</label>
+<div class="tools toolbar-row">
+  <button class="btn small active" id="tile-trail">🟩 Trail</button>
+  <button class="btn small" id="tile-forest">🌲 Forest</button>
+  <button class="btn small" id="tile-water">💧 Water</button>
+</div>
+
+
+  <label>Brush</label>
+  <div style="display:flex; gap:8px; align-items:center">
+    <input id="brushSize" type="number" value="1" min="1" max="8" style="width:80px" />
+    <div style="font-size:13px;color:var(--muted)">tiles</div>
+  </div>
+
+  <label>Viewport & controls</label>
+  <div style="display:flex;gap:8px;margin-top:6px">
+    <button class="btn small" id="zoomIn">＋ Zoom</button>
+    <button class="btn small" id="zoomOut">－ Zoom</button>
+    <button class="btn small" id="resetView">Reset View</button>
+  </div>
+
+  <label>Map actions</label>
+  <div style="display:flex;gap:8px;margin-top:6px">
+    <button class="btn small" id="newMap">🆕 New</button>
+    <button class="btn small" id="clearMap">🧹 Clear Trail</button>
+    <button class="btn small" id="exportPNG">🖼️ Export PNG</button>
+  </div>
+
+  <label>Save / Load</label>
+  <div style="display:flex;gap:8px;margin-top:6px">
+    <button class="btn small" id="saveJSON">💾 Download JSON</button>
+    <input id="fileLoad" type="file" accept="application/json" style="display:inline-block; padding:6px; background:#021218; color:#dff; border-radius:8px; border:1px solid #16303a" />
+  </div>
+
+  <div class="hint">
+    Shortcuts: Hold Space = Pan. Hold Shift = Erase. Left-drag to draw. Right click to toggle tile under cursor.
+  </div>
+
+  <div class="footer">
+    <strong>JSON format</strong>
+    <pre style="background:#071a1f;padding:8px;border-radius:6px;margin-top:8px;color:#bfe">
+{
+ "w":40,"h":30,"tileSize":24,
+ "trail":[{"x":3,"y":10},...],
+ "lair": {"x":20,"y":6}
+}
+    </pre>
+  </div>
+</div>
+
+<div id="canvasWrap">
+  <canvas id="mapCanvas" width="960" height="720"></canvas>
+</div>
+
+<script>
+/* Simple Map Editor
+   - grid of tiles
+   - draw trail tiles by dragging
+   - place one lair marker
+   - save/load JSON and export PNG
+*/
+
+/* ------------ State & Config ------------ */
+let mapW = parseInt(document.getElementById('mapW').value,10);
+let mapH = parseInt(document.getElementById('mapH').value,10);
+let tileSize = parseInt(document.getElementById('tileSize').value,10);
+let brushSize = parseInt(document.getElementById('brushSize').value,10);
+
+const canvas = document.getElementById('mapCanvas');
+const ctx = canvas.getContext('2d');
+let scale = 1;
+let offsetX = 0, offsetY = 0; // world-to-screen offset in pixels
+
+let dragging = false;
+let dragStart = null;
+let currentTool = 'draw'; // draw | erase | lair | pan
+let currentTileType = 1; // 1=trail, 2=forest, 3=water
+
+let isSpaceDown = false;
+let isShiftDown = false;
+
+// map storage: 0=empty, 1=trail
+let tiles = [];
+let lair = null; // {x,y} or null
+
+function initMap(w, h, tsize){
+  mapW = w; mapH = h; tileSize = tsize;
+  tiles = new Array(mapH);
+  for(let y=0;y<mapH;y++){
+    tiles[y] = new Array(mapW).fill(0);
+  }
+  lair = null;
+  resetView();
+  draw();
+}
+
+function resetView(){
+  // center map on canvas
+  scale = Math.max(0.5, Math.min(2.5, Math.floor( (canvas.width / (mapW*tileSize)) * 100 )/100 + 0.5));
+  // simple centering
+  offsetX = (canvas.width - mapW*tileSize*scale) / 2;
+  offsetY = (canvas.height - mapH*tileSize*scale) / 2;
+}
+
+/* ------------ Utilities ------------ */
+function worldToTile(px, py){
+  // px,py are canvas coords
+  const wx = (px - offsetX) / scale;
+  const wy = (py - offsetY) / scale;
+  const tx = Math.floor(wx / tileSize);
+  const ty = Math.floor(wy / tileSize);
+  return {tx,ty};
+}
+function tileToWorld(tx, ty){
+  return { x: offsetX + tx*tileSize*scale, y: offsetY + ty*tileSize*scale };
+}
+function inBounds(tx, ty){
+  return tx>=0 && ty>=0 && tx<mapW && ty<mapH;
+}
+function setTile(tx, ty, val){
+  if(!inBounds(tx,ty)) return;
+  tiles[ty][tx] = val;
+}
+
+function toggleTile(tx, ty){
+  if(!inBounds(tx,ty)) return;
+  tiles[ty][tx] = tiles[ty][tx] ? 0 : 1;
+}
+
+/* ------------ Drawing ------------ */
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // background
+  ctx.fillStyle = '#071014';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // draw grid tiles
+  for(let y=0;y<mapH;y++){
+    for(let x=0;x<mapW;x++){
+      const wx = offsetX + x*tileSize*scale;
+      const wy = offsetY + y*tileSize*scale;
+      const val = tiles[y][x];
+if(val === 1){ // trail
+  ctx.fillStyle = '#6a8f6a';
+  ctx.fillRect(wx+1, wy+1, tileSize*scale-2, tileSize*scale-2);
+} else if(val === 2){ // forest
+  ctx.fillStyle = '#0b4416';
+  ctx.fillRect(wx+1, wy+1, tileSize*scale-2, tileSize*scale-2);
+} else if(val === 3){ // water
+  ctx.fillStyle = '#1b4a8a';
+  ctx.fillRect(wx+1, wy+1, tileSize*scale-2, tileSize*scale-2);
+} else {
+  ctx.fillStyle = '#061018';
+  ctx.fillRect(wx, wy, tileSize*scale, tileSize*scale);
+}
+
+      // tile border
+      ctx.strokeStyle = 'rgba(90,120,100,0.14)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(wx+0.5, wy+0.5, tileSize*scale-1, tileSize*scale-1);
+    }
+  }
+
+  // lair
+  if(lair){
+    const p = tileToWorld(lair.x, lair.y);
+    const s = tileSize*scale;
+    // pedestal
+    ctx.fillStyle = '#222a2a';
+    ctx.fillRect(p.x+4, p.y + s*0.55, s-8, s*0.4);
+    // castle icon (simple)
+    ctx.fillStyle = '#ffd285';
+    const cx = p.x + s/2;
+    const cy = p.y + s*0.45;
+    ctx.beginPath();
+    ctx.moveTo(cx - s*0.18, cy + s*0.2);
+    ctx.lineTo(cx - s*0.18, cy - s*0.15);
+    ctx.lineTo(cx - s*0.08, cy - s*0.15);
+    ctx.lineTo(cx - s*0.08, cy - s*0.05);
+    ctx.lineTo(cx + s*0.0, cy - s*0.05);
+    ctx.lineTo(cx + s*0.0, cy - s*0.15);
+    ctx.lineTo(cx + s*0.08, cy - s*0.15);
+    ctx.lineTo(cx + s*0.08, cy + s*0.2);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // highlight hovered tile
+  if(lastHover){
+    const {tx,ty} = lastHover;
+    if(inBounds(tx,ty)){
+      const p = tileToWorld(tx,ty);
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      ctx.fillRect(p.x+1, p.y+1, tileSize*scale-2, tileSize*scale-2);
+    }
+  }
+
+  // debug overlay: tile coords under mouse
+  if(lastHover){
+    const {tx,ty} = lastHover;
+    if(inBounds(tx,ty)){
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(8,8,96,26);
+      ctx.fillStyle = '#bfe';
+      ctx.font = '12px system-ui';
+      ctx.fillText(`tile: ${tx}, ${ty}`, 14, 26);
+    }
+  }
+}
+
+/* ------------ Input Handling ------------ */
+let lastHover = null;
+let isRightDown = false;
+
+canvas.addEventListener('mousedown', e=>{
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  if(e.button === 2) { // right button toggle
+    const {tx,ty} = worldToTile(x,y);
+    if(inBounds(tx,ty)) toggleTile(tx,ty);
+    draw();
+    return;
+  }
+
+  dragging = true;
+  dragStart = {x,y,tool: currentTool};
+  if(currentTool === 'pan' || isSpaceDown){
+    canvas.style.cursor = 'grabbing';
+  } else if(currentTool === 'lair'){
+    const {tx,ty} = worldToTile(x,y);
+    if(inBounds(tx,ty)){
+      lair = {x:tx,y:ty};
+      draw();
+    }
+  } else {
+    handlePaintAt(x,y);
+  }
+});
+
+canvas.addEventListener('mousemove', e=>{
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  lastHover = worldToTile(x,y);
+
+  if(dragging){
+    if(currentTool === 'pan' || isSpaceDown){
+      // pan: compute delta
+      const dx = x - dragStart.x;
+      const dy = y - dragStart.y;
+      offsetX += dx;
+      offsetY += dy;
+      dragStart.x = x; dragStart.y = y;
+      draw();
+      return;
+    }
+    if(currentTool === 'lair') return;
+    handlePaintAt(x,y);
+  } else {
+    draw(); // to show hover
+  }
+});
+
+canvas.addEventListener('mouseup', e=>{
+  dragging = false;
+  canvas.style.cursor = 'default';
+});
+
+canvas.addEventListener('mouseleave', e=>{
+  dragging = false;
+  draw();
+});
+
+// wheel to zoom
+canvas.addEventListener('wheel', e=>{
+  if(e.ctrlKey) {
+    e.preventDefault();
+    if(e.deltaY < 0) { zoom(1.15); } else { zoom(1/1.15); }
+  }
+});
+
+function setActiveTileType(type, val){
+  currentTileType = val;
+  ['tile-trail','tile-forest','tile-water'].forEach(id=>{
+    document.getElementById(id).classList.remove('active');
+  });
+  document.getElementById(type).classList.add('active');
+}
+
+document.getElementById('tile-trail').addEventListener('click', ()=> setActiveTileType('tile-trail',1));
+document.getElementById('tile-forest').addEventListener('click', ()=> setActiveTileType('tile-forest',2));
+document.getElementById('tile-water').addEventListener('click', ()=> setActiveTileType('tile-water',3));
+
+
+function handlePaintAt(px, py) {
+  const { tx, ty } = worldToTile(px, py);
+  if (!inBounds(tx, ty)) return;
+
+  let tool = currentTool;
+  if (isShiftDown) tool = 'erase';
+
+  if (tool === 'draw') {
+    const b = Math.max(1, brushSize | 0);
+    const half = Math.floor(b / 2);
+    for (let yy = ty - half; yy <= ty + half; yy++) {
+      for (let xx = tx - half; xx <= tx + half; xx++) {
+        if (inBounds(xx, yy)) setTile(xx, yy, currentTileType);
+      }
+    }
+    draw();
+  } else if (tool === 'erase') {
+    const b = Math.max(1, brushSize | 0);
+    const half = Math.floor(b / 2);
+    for (let yy = ty - half; yy <= ty + half; yy++) {
+      for (let xx = tx - half; xx <= tx + half; xx++) {
+        if (inBounds(xx, yy)) setTile(xx, yy, 0);
+      }
+    }
+    draw();
+  }
+}
+
+
+/* ------------ UI wiring ------------ */
+function setActiveTool(name){
+  currentTool = name;
+  ['tool-draw','tool-erase','tool-lair','tool-pan'].forEach(id=>{
+    document.getElementById(id).classList.remove('active');
+  });
+  if(name==='draw') document.getElementById('tool-draw').classList.add('active');
+  if(name==='erase') document.getElementById('tool-erase').classList.add('active');
+  if(name==='lair') document.getElementById('tool-lair').classList.add('active');
+  if(name==='pan') document.getElementById('tool-pan').classList.add('active');
+}
+
+document.getElementById('tool-draw').addEventListener('click', ()=> setActiveTool('draw'));
+document.getElementById('tool-erase').addEventListener('click', ()=> setActiveTool('erase'));
+document.getElementById('tool-lair').addEventListener('click', ()=> setActiveTool('lair'));
+document.getElementById('tool-pan').addEventListener('click', ()=> setActiveTool('pan'));
+
+document.getElementById('brushSize').addEventListener('change', e=>{
+  brushSize = parseInt(e.target.value,10) || 1;
+});
+
+document.getElementById('mapW').addEventListener('change', e=>{
+  const w = Math.max(8, Math.min(200, parseInt(e.target.value,10)||40));
+  mapW = w;
+});
+document.getElementById('mapH').addEventListener('change', e=>{
+  const h = Math.max(8, Math.min(200, parseInt(e.target.value,10)||30));
+  mapH = h;
+});
+document.getElementById('tileSize').addEventListener('change', e=>{
+  tileSize = Math.max(8, Math.min(64, parseInt(e.target.value,10)||24));
+});
+
+document.getElementById('newMap').addEventListener('click', ()=>{
+  const w = parseInt(document.getElementById('mapW').value,10) || 40;
+  const h = parseInt(document.getElementById('mapH').value,10) || 30;
+  const ts = parseInt(document.getElementById('tileSize').value,10) || 24;
+  if(!confirm('Create new map? (this will clear current map)')) return;
+  initMap(w,h,ts);
+});
+
+document.getElementById('clearMap').addEventListener('click', ()=>{
+  if(!confirm('Clear all trail tiles?')) return;
+  for(let y=0;y<mapH;y++) for(let x=0;x<mapW;x++) tiles[y][x]=0;
+  lair = null;
+  draw();
+});
+
+document.getElementById('zoomIn').addEventListener('click', ()=> zoom(1.2));
+document.getElementById('zoomOut').addEventListener('click', ()=> zoom(1/1.2));
+document.getElementById('resetView').addEventListener('click', ()=> { resetView(); draw(); });
+
+function zoom(factor){
+  // zoom about canvas center
+  const cx = canvas.width/2, cy = canvas.height/2;
+  const before = {wx: (cx - offsetX)/scale, wy: (cy - offsetY)/scale};
+  scale *= factor;
+  scale = Math.max(0.25, Math.min(4, scale));
+  offsetX = cx - before.wx*scale;
+  offsetY = cy - before.wy*scale;
+  draw();
+}
+
+/* Save / Load */
+document.getElementById('saveJSON').addEventListener('click', ()=>{
+  const data = {
+  w: mapW, h: mapH, tileSize: tileSize,
+  tiles: tiles,
+  lair: lair
+};
+
+  for(let y=0;y<mapH;y++){
+    for(let x=0;x<mapW;x++){
+      if(tiles[y][x] === 1) data.trail.push({x,y});
+    }
+  }
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'level.json'; a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('fileLoad').addEventListener('change', evt=>{
+  const f = evt.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try{
+      const obj = JSON.parse(ev.target.result);
+      if(!obj.w || !obj.h) throw new Error('Invalid file');
+      initMap(obj.w, obj.h, obj.tileSize || tileSize);
+      // fill trail
+      if(Array.isArray(obj.trail)){
+        for(const p of obj.trail) if(inBounds(p.x,p.y)) tiles[p.y][p.x]=1;
+      } else if(obj.trail && Array.isArray(obj.trail.rows)){
+        // optional alternate format
+      }
+      if(obj.lair && typeof obj.lair.x === 'number') lair = {x: obj.lair.x, y: obj.lair.y};
+      draw();
+      alert('Loaded map.');
+    }catch(err){
+      alert('Failed to load JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(f);
+});
+
+/* Export PNG */
+document.getElementById('exportPNG').addEventListener('click', ()=>{
+  // create an offscreen canvas at native tile resolution for nicer export
+  const outW = mapW * tileSize;
+  const outH = mapH * tileSize;
+  const off = document.createElement('canvas');
+  off.width = outW; off.height = outH;
+  const octx = off.getContext('2d');
+  // bg
+  octx.fillStyle = '#061014';
+  octx.fillRect(0,0,outW,outH);
+  // tiles
+  for(let y=0;y<mapH;y++){
+    for(let x=0;x<mapW;x++){
+      const wx = x*tileSize, wy = y*tileSize;
+      if(tiles[y][x] === 1){
+        octx.fillStyle = '#6a8f6a';
+        octx.fillRect(wx+1, wy+1, tileSize-2, tileSize-2);
+      } else {
+        octx.fillStyle = '#061018';
+        octx.fillRect(wx, wy, tileSize, tileSize);
+      }
+      octx.strokeStyle = 'rgba(90,120,100,0.12)';
+      octx.strokeRect(wx+0.5, wy+0.5, tileSize-1, tileSize-1);
+    }
+  }
+  // lair
+  if(lair){
+    const p = {x: lair.x*tileSize, y: lair.y*tileSize};
+    const s = tileSize;
+    octx.fillStyle = '#222a2a';
+    octx.fillRect(p.x+4, p.y + s*0.55, s-8, s*0.4);
+    octx.fillStyle = '#ffd285';
+    const cx = p.x + s/2;
+    const cy = p.y + s*0.45;
+    octx.beginPath();
+    octx.moveTo(cx - s*0.18, cy + s*0.2);
+    octx.lineTo(cx - s*0.18, cy - s*0.15);
+    octx.lineTo(cx - s*0.08, cy - s*0.15);
+    octx.lineTo(cx - s*0.08, cy - s*0.05);
+    octx.lineTo(cx + s*0.0, cy - s*0.05);
+    octx.lineTo(cx + s*0.0, cy - s*0.15);
+    octx.lineTo(cx + s*0.08, cy - s*0.15);
+    octx.lineTo(cx + s*0.08, cy + s*0.2);
+    octx.closePath();
+    octx.fill();
+  }
+
+  off.toBlob(blob=>{
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'map.png'; a.click();
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+});
+
+/* keyboard shortcuts */
+window.addEventListener('keydown', e=>{
+  if(e.code === 'Space'){ isSpaceDown = true; currentTool = 'pan'; setActiveTool('pan'); }
+  if(e.key === 'Shift') isShiftDown = true;
+  if(e.key === 'z' && (e.ctrlKey||e.metaKey)){ /* TODO: undo */ e.preventDefault(); }
+});
+window.addEventListener('keyup', e=>{
+  if(e.code === 'Space'){ isSpaceDown = false; setActiveTool('draw'); }
+  if(e.key === 'Shift') isShiftDown = false;
+});
+
+/* right click prevention on canvas */
+canvas.addEventListener('contextmenu', e=> e.preventDefault());
+
+/* show tile under mouse after move */
+canvas.addEventListener('mousemove', e=> { /* already wired above */ });
+
+/* init & resize handling */
+function resizeCanvas(){
+  const wrap = document.getElementById('canvasWrap');
+  // fill remaining area
+  const w = Math.max(480, window.innerWidth - 400);
+  const h = Math.max(360, window.innerHeight);
+  canvas.width = Math.floor(w);
+  canvas.height = Math.floor(h);
+  resetView();
+  draw();
+}
+window.addEventListener('resize', resizeCanvas);
+
+/* initial */
+resizeCanvas();
+initMap(mapW, mapH, tileSize);
+
+</script>
+</body>
+</html>

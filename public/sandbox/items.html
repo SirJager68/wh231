@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claim Contents List</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <h2>Claim: River Region Depot Fire</h2>
+  <nav>
+    <a href="dashboard.html">Back to Dashboard</a>
+  </nav>
+</header>
+
+<main>
+  <div class="toolbar">
+    <input type="search" id="search" placeholder="Search items...">
+    <select id="pageSize">
+      <option>25</option><option>50</option><option>100</option>
+    </select>
+    <button class="btn">Export CSV</button>
+  </div>
+
+  <table class="item-table">
+    <thead>
+      <tr>
+        <th>#</th><th>Item Name</th><th>Category</th>
+        <th>Adj. Value</th><th>Claimed Value</th><th>Status</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>001</td>
+        <td>Midas M32 Console</td>
+        <td>Audio Equipment</td>
+        <td>$3,200</td>
+        <td>$3,800</td>
+        <td><span class="badge badge-review">Pending</span></td>
+        <td><button class="btn-small" onclick="window.location.href='itemDetail.html?id=1'">View</button></td>
+      </tr>
+      <tr>
+        <td>002</td>
+        <td>Moving Light</td>
+        <td>Lighting</td>
+        <td>$1,000</td>
+        <td>$1,000</td>
+        <td><span class="badge badge-ok">Approved</span></td>
+        <td><button class="btn-small" onclick="window.location.href='/itemDetail.html?id=2'">View</button></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <footer class="pagination">
+    <button>&lt; Prev</button>
+    <span>Page 1 of 40</span>
+    <button>Next &gt;</button>
+  </footer>
+</main>
+</body>
+</html>

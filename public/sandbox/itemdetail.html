@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Item Detail - Midas M32 Console</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <a href="items.html" class="back-link">← Back to List</a>
+  <h2>Item Detail: Midas M32 Console</h2>
+</header>
+
+<main class="item-detail">
+
+  <section class="detail-section">
+    <div class="detail-left">
+      <h3>Item Information</h3>
+      <p><strong>Category:</strong> Audio Gear</p>
+      <p><strong>Adjuster Value:</strong> $3,200</p>
+      <p><strong>Claimee Adjustment:</strong> $3,800</p>
+      <p><strong>Difference:</strong> +$600</p>
+      <p><strong>Status:</strong> <span class="badge badge-review">Pending Review</span></p>
+    </div>
+
+    <div class="detail-right">
+      <img src="/uploads/m32.jpg" alt="Midas M32 Console" class="preview-img">
+      <button class="btn">Add / Replace Image</button>
+    </div>
+  </section>
+
+  <section class="edit-section">
+    <h3>Claimee Comments</h3>
+    <textarea rows="4" placeholder="Add notes for adjuster..."></textarea>
+    <button class="btn">Save Comment</button>
+
+    <h3>Attachments</h3>
+    <ul class="file-list">
+      <li><a href="/uploads/m32_invoice.pdf" target="_blank">Invoice.pdf</a></li>
+    </ul>
+    <input type="file" multiple>
+  </section>
+
+  <section class="history-section">
+    <h3>Change History</h3>
+    <table class="history-table">
+      <thead>
+        <tr><th>Date</th><th>User</th><th>Field</th><th>Old</th><th>New</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>10/20/25</td><td>Adjuster</td><td>Value</td><td>3100</td><td>3200</td></tr>
+        <tr><td>10/21/25</td><td>Claimee</td><td>Value</td><td>3200</td><td>3800</td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+</body>
+</html>

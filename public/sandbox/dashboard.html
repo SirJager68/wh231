@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Claim Contents Manager</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <h2>Welcome, John (Adjuster)</h2>
+  <nav>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="/logout">Logout</a>
+  </nav>
+</header>
+
+<main class="dashboard">
+  <h3>Active Claims</h3>
+
+  <div class="card-grid">
+    <div class="claim-card">
+      <h4>River Region Depot Fire</h4>
+      <p><strong>Claim #:</strong> E2J34564</p>
+      <p><strong>Status:</strong> Pending Claimee Review</p>
+      <button onclick="window.location.href='items.html?claim=E2J34564'" class="btn">View Contents</button>
+    </div>
+
+    <div class="claim-card">
+      <h4>Warehouse 231 Flood</h4>
+      <p><strong>Claim #:</strong> A3Z11231</p>
+      <p><strong>Status:</strong> In Progress</p>
+      <button onclick="window.location.href='items.html?claim=A3Z11231'" class="btn">View Contents</button>
+    </div>
+  </div>
+</main>
+</body>
+</html>
