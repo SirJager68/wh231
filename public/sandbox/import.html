@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sandbox CSV Import</title>
+  <style>
+    body { font-family: Arial; background: #111; color: #eee; text-align: center; padding: 40px; }
+    input[type=file] { margin: 20px auto; display: block; }
+    button { padding: 10px 20px; background: #28a745; border: none; color: #fff; cursor: pointer; border-radius: 5px; }
+    #result { margin-top: 20px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>📦 Import Inventory CSV (Sandbox)</h1>
+  <form id="importForm" enctype="multipart/form-data">
+    <input type="file" name="file" accept=".csv" required />
+    <button type="submit">Upload & Import</button>
+  </form>
+  <div id="result"></div>
+
+  <script>
+    document.getElementById('importForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await fetch('/api/import', { method: 'POST', body: formData });
+      const data = await res.json();
+      document.getElementById('result').innerText = data.success
+        ? `✅ Imported ${data.imported} rows successfully!`
+        : `❌ Error: ${data.error}`;
+    });
+  </script>
+</body>
+</html>
