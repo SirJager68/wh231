@@ -1,6 +1,6 @@
 // ======================================================
 // Warehouse 231 / Contents Manager
-// Full Working Server.js (Sandbox Edition)
+// Auto-detects schema for Local (claims) or Heroku (public)
 // ======================================================
 
 require("dotenv").config();
@@ -24,6 +24,27 @@ const pool = new Pool({
       : false,
 });
 
+// Determine correct schema on startup
+let schema = "claims";
+(async () => {
+  try {
+    const res = await pool.query(`
+      SELECT schema_name
+      FROM information_schema.schemata
+      WHERE schema_name = 'claims';
+    `);
+    if (res.rowCount === 0) {
+      schema = "public";
+    }
+    console.log(`📦 Using schema: ${schema}`);
+  } catch (err) {
+    console.error("⚠️ Error detecting schema:", err.message);
+  }
+})();
+
+// Helper function to build schema-qualified names
+const t = (table) => `${schema}.${table}`;
+
 // ======================================================
 // ROUTES
 // ======================================================
@@ -36,16 +57,14 @@ app.get("/api/health", (req, res) => {
 // --- GET ALL ITEMS (optional ?search=term) ---
 app.get("/api/items", async (req, res) => {
   const { search } = req.query;
-
   try {
     let sql = `
       SELECT line_number, room_area, quantity, description,
              brand, model, unit_rcv, extended_rcv, acv_percent, acv,
              source_link, notes
-      FROM claims.inventory_items
+      FROM ${t("inventory_items")}
     `;
     const params = [];
-
     if (search) {
       sql += ` WHERE 
         description ILIKE $1 OR
@@ -55,9 +74,7 @@ app.get("/api/items", async (req, res) => {
         notes ILIKE $1`;
       params.push(`%${search}%`);
     }
-
     sql += " ORDER BY line_number ASC LIMIT 200;";
-
     const { rows } = await pool.query(sql, params);
     res.json(rows);
   } catch (err) {
@@ -66,15 +83,11 @@ app.get("/api/items", async (req, res) => {
   }
 });
 
-// --- GET SINGLE ITEM BY LINE NUMBER ---
+// --- GET SINGLE ITEM ---
 app.get("/api/items/:line_number", async (req, res) => {
   const { line_number } = req.params;
   try {
-    const sql = `
-      SELECT *
-      FROM claims.inventory_items
-      WHERE line_number = $1;
-    `;
+    const sql = `SELECT * FROM ${t("inventory_items")} WHERE line_number = $1;`;
     const { rows } = await pool.query(sql, [line_number]);
     if (rows.length === 0)
       return res.status(404).json({ error: "Item not found" });
@@ -103,7 +116,7 @@ app.post("/api/items", async (req, res) => {
   } = req.body;
 
   const sql = `
-    INSERT INTO claims.inventory_items
+    INSERT INTO ${t("inventory_items")}
     (line_number, room_area, quantity, description,
      brand, model, unit_rcv, extended_rcv, acv_percent, acv,
      source_link, notes)
@@ -135,40 +148,32 @@ app.post("/api/items", async (req, res) => {
 // --- BULK IMPORT FROM CSV ---
 app.post("/api/import", async (req, res) => {
   const filePath = path.join(__dirname, "public", "sandbox", "von_items.csv");
-
-  if (!fs.existsSync(filePath)) {
-    console.error(`❌ CSV file not found at ${filePath}`);
-    return res
-      .status(404)
-      .json({ error: `CSV file not found at ${filePath}` });
-  }
+  if (!fs.existsSync(filePath))
+    return res.status(404).json({ error: `CSV file not found at ${filePath}` });
 
   console.log("📂 Importing from:", filePath);
 
-  // clear table
   try {
-    await pool.query("TRUNCATE TABLE claims.inventory_items RESTART IDENTITY;");
+    await pool.query(`TRUNCATE TABLE ${t("inventory_items")} RESTART IDENTITY;`);
     console.log("🧹 Cleared table before import...");
   } catch (err) {
     console.error("DB clear error:", err.message);
     return res.status(500).json({ error: "Failed to clear table" });
   }
 
-  // read CSV and insert
   let count = 0;
   const rows = [];
 
   fs.createReadStream(filePath)
     .pipe(csv())
     .on("data", (row) => {
-      // clean numeric fields
       const cleanNum = (v) =>
         v && !isNaN(v) ? Number(v.toString().replace(/[^0-9.-]/g, "")) : null;
 
       rows.push([
         cleanNum(row.line_number),
         row.room_area || null,
-        cleanNum(row.quantity || row.quanity), // fix misspellings
+        cleanNum(row.quantity || row.quanity),
         row.description || null,
         row.brand || null,
         row.model || null,
@@ -185,7 +190,7 @@ app.post("/api/import", async (req, res) => {
         for (const r of rows) {
           await pool.query(
             `
-            INSERT INTO claims.inventory_items
+            INSERT INTO ${t("inventory_items")}
             (line_number, room_area, quantity, description,
              brand, model, unit_rcv, extended_rcv, acv_percent, acv,
              source_link, notes)
@@ -209,12 +214,12 @@ app.post("/api/import", async (req, res) => {
 });
 
 // ======================================================
-// STATIC FILES (keep this at the bottom!)
+// STATIC FILES
 // ======================================================
 app.use(express.static(path.join(__dirname, "public")));
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
+app.get("/", (req, res) =>
+  res.sendFile(path.join(__dirname, "public", "index.html"))
+);
 
 // ======================================================
 // START SERVER
