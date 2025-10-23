@@ -37,10 +37,15 @@ let schema = "claims";
       schema = "public";
     }
     console.log(`📦 Using schema: ${schema}`);
+
+    // ✅ Tell Postgres to use it
+    await pool.query(`SET search_path TO ${schema}, public;`);
+    console.log(`🧭 search_path set to: ${schema}, public`);
   } catch (err) {
     console.error("⚠️ Error detecting schema:", err.message);
   }
 })();
+
 
 // Helper function to build schema-qualified names
 const t = (table) => `${schema}.${table}`;
