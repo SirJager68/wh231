@@ -1,150 +1,125 @@
-body {
-  font-family: Inter, sans-serif;
-  background: #f6f7fb;
-  color: #333;
-  margin: 0;
-}
+/* ================================
+   2025 Modern Updates — Contents Manager
+   ================================ */
 
-.topbar {
-  background: #2a3f54;
-  color: #fff;
-  padding: 15px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.topbar a {
-  color: #fff;
-  text-decoration: none;
-  margin-left: 15px;
-}
-
-h1, h2, h3 {
-  margin: 10px 0;
-}
-
-.center-page {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-}
-
-.login-box {
-  background: #fff;
-  padding: 40px;
-  border-radius: 10px;
-  width: 320px;
-  text-align: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.login-box input {
-  width: 100%;
-  padding: 8px;
-  margin: 8px 0;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-}
-
-button, .btn {
-  background: #0056d2;
-  color: white;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.btn-small {
-  padding: 5px 10px;
-  font-size: 0.8em;
-}
-
-.dashboard {
-  padding: 20px;
-}
-
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 20px;
-}
-
-.claim-card {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-
-.toolbar {
-  padding: 15px;
-  display: flex;
-  gap: 10px;
-  background: white;
-  border-bottom: 1px solid #ddd;
-  align-items: center;
-}
-
-.item-table, .history-table {
+/* Table wrapper */
+.item-table {
   width: 100%;
   border-collapse: collapse;
-  margin: 20px 0;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
 }
 
-.item-table th, .item-table td,
-.history-table th, .history-table td {
-  border-bottom: 1px solid #ddd;
-  padding: 8px;
-  text-align: left;
+/* Table headers */
+.item-table th {
+  background: linear-gradient(to bottom, #f9fafb, #f0f2f5);
+  color: #333;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.85em;
+  letter-spacing: 0.03em;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e5ea;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
-.badge {
-  padding: 4px 8px;
-  border-radius: 4px;
-  color: white;
-  font-size: 0.8em;
+/* Table rows */
+.item-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
 }
 
-.badge-review { background: #f39c12; }
-.badge-ok { background: #27ae60; }
+.item-table tr:hover {
+  background: #f6faff;
+  transition: background 0.2s ease;
+}
 
-.detail-section {
+/* Toolbar modernization */
+.toolbar {
+  background: #fff;
+  padding: 12px 20px;
   display: flex;
   justify-content: space-between;
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 
-.detail-right {
-  text-align: center;
-}
-
-.preview-img {
-  width: 200px;
-  border-radius: 8px;
-  margin-bottom: 10px;
-}
-
-.edit-section, .history-section {
-  background: white;
-  margin-top: 20px;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.05);
-}
-
-textarea {
-  width: 100%;
-  padding: 10px;
-  border-radius: 5px;
+.toolbar input[type="text"] {
+  padding: 8px 12px;
   border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.95em;
+  width: 250px;
+  transition: border 0.2s;
+}
+.toolbar input[type="text"]:focus {
+  border-color: #0056d2;
+  outline: none;
 }
 
-.file-list li {
-  margin: 5px 0;
+/* Sticky footer pager */
+.pager {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(0,0,0,0.08);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  box-shadow: 0 -4px 8px rgba(0,0,0,0.05);
+  z-index: 100;
+}
+
+.pager button,
+.pager select {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.2s;
+}
+
+.pager button:hover {
+  background: #0056d2;
+  color: #fff;
+  border-color: #0056d2;
+}
+
+.pager select:focus {
+  border-color: #0056d2;
+  outline: none;
+}
+
+.pager #pageInfo {
+  font-weight: 600;
+  color: #333;
+}
+
+/* Responsive tweaks */
+@media (max-width: 600px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .pager {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .pager button,
+  .pager select {
+    flex: 1;
+  }
 }

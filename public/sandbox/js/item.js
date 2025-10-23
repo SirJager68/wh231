@@ -1,10 +1,11 @@
 async function loadItem() {
   const params = new URLSearchParams(window.location.search);
-  const id = params.get('id');
-  if (!id) return;
+  const line = params.get('line'); // changed from id → line
+  if (!line) return;
 
   try {
-    const res = await fetch(`/api/items/${id}`);
+    const res = await fetch(`/api/items/${line}`);
+    if (!res.ok) throw new Error("Item not found");
     const item = await res.json();
     const el = document.getElementById('item');
 
@@ -26,13 +27,14 @@ async function loadItem() {
       <p><span class="label">ACV:</span> $${Number(item.acv || 0).toFixed(2)}</p>
       <p><span class="label">Notes:</span> ${item.notes || ''}</p>
       <p><span class="label">Source:</span> ${
-        item.source_link 
-          ? `<a href="${item.source_link}" target="_blank">View Link</a>` 
+        item.source_link
+          ? `<a href="${item.source_link}" target="_blank">View Link</a>`
           : 'N/A'
       }</p>
     `;
   } catch (err) {
     console.error('Error loading item:', err);
+    document.getElementById('item').innerHTML = "<p>Error loading item details.</p>";
   }
 }
 
