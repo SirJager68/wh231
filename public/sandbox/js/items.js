@@ -33,18 +33,25 @@ function render(data) {
     return;
   }
 
-  data.items.forEach(item => {
+  data.items.forEach((item) => {
+    const lastEdit = item.last_edit_date
+      ? new Date(item.last_edit_date).toLocaleDateString()
+      : null;
+
+    const editTag = lastEdit
+      ? `<span class="tag-edited">Edited ${lastEdit}</span>`
+      : "";
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${item.line_number || ""}</td>
       <td>${item.room_area || ""}</td>
       <td>${item.quantity || ""}</td>
-      <td>${item.description || ""}</td>
+      <td>${item.description || ""} ${editTag}</td>
       <td>${formatCurrency(item.unit_rcv)}</td>
       <td>${formatCurrency(item.extended_rcv)}</td>
     `;
 
-    // ✅ click row to open detail page
     tr.style.cursor = "pointer";
     tr.addEventListener("click", () => {
       window.location.href = `/sandbox/item.html?line=${item.line_number}`;
@@ -58,6 +65,7 @@ function render(data) {
   document.getElementById("prevBtn").disabled = data.page <= 1;
   document.getElementById("nextBtn").disabled = data.page >= data.pages;
 }
+
 
 // === UI EVENT HANDLERS ===
 document.getElementById("search").addEventListener("input", e => {

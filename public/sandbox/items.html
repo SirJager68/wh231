@@ -86,6 +86,26 @@
       cursor: pointer;
     }
 
+    /* === Table Width & Column Stability === */
+table {
+  width: 100%;
+  table-layout: fixed; /* keeps column widths consistent */
+}
+
+th, td {
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+/* proportional column widths */
+th:nth-child(1), td:nth-child(1) { width: 6%; min-width: 60px; }
+th:nth-child(2), td:nth-child(2) { width: 18%; min-width: 150px; }
+th:nth-child(3), td:nth-child(3) { width: 8%;  min-width: 60px; }
+th:nth-child(4), td:nth-child(4) { width: 40%; min-width: 280px; }
+th:nth-child(5), td:nth-child(5) { width: 14%; min-width: 100px; text-align: right; }
+th:nth-child(6), td:nth-child(6) { width: 14%; min-width: 100px; text-align: right; }
+
+
     /* Sticky pager */
     .pager {
       position: fixed;
@@ -128,6 +148,18 @@
       font-size: 14px;
       color: #333;
     }
+
+    .tag-edited {
+  background: #fff4cc;
+  color: #8a5a00;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
   </style>
 </head>
 
