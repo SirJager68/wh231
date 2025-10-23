@@ -1,43 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Contents Manager</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin:20px; background:#fafafa; }
-    h1 { margin-bottom:10px; }
-    table { width:100%; border-collapse:collapse; background:#fff; }
-    th, td { border:1px solid #ddd; padding:8px; text-align:left; }
-    th { background:#f3f3f3; }
-    tr:hover { background:#f9f9f9; cursor:pointer; }
-    #search { margin-bottom:10px; padding:6px 10px; width:260px; }
-    .toolbar { margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
-    .toolbar button { padding:6px 12px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contents Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #fafafa;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background: #f3f3f3;
+        }
+
+        tr:hover {
+            background: #f9f9f9;
+            cursor: pointer;
+        }
+
+        #search {
+            margin-bottom: 10px;
+            padding: 6px 10px;
+            width: 260px;
+        }
+
+        .toolbar {
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .toolbar button {
+            padding: 6px 12px;
+        }
+
+        .pager {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        select {
+            padding: 4px 6px;
+        }
+    </style>
 </head>
+
 <body>
-  <h1>Business Contents List</h1>
+    <h1>Business Contents List</h1>
 
-  <div class="toolbar">
-    <input id="search" type="text" placeholder="Search items...">
-    <button onclick="window.location.reload()">⟳ Refresh</button>
-  </div>
+    <div class="toolbar">
+        <input id="search" type="text" placeholder="Search items...">
+        <div>
+            <label>Show
+                <select id="pageSize">
+                    <option value="25">25</option>
+                    <option value="50" selected>50</option>
+                    <option value="100">100</option>
+                </select>
+                items
+            </label>
+            <button onclick="window.location.reload()">⟳ Refresh</button>
+        </div>
+    </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Room / Area</th>
-        <th>Qty</th>
-        <th>Description</th>
-        <th>Unit RCV</th>
-        <th>Extended RCV</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Room / Area</th>
+                <th>Qty</th>
+                <th>Description</th>
+                <th>Unit RCV</th>
+                <th>Extended RCV</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
 
-  <script src="js/items.js"></script>
+    <div class="pager">
+        <button id="prevBtn">← Prev</button>
+        <span id="pageInfo">Page 1</span>
+        <button id="nextBtn">Next →</button>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let pageSize = 50;
+        let currentSearch = "";
+        let totalPages = 1;
+
+        async function loadItems() {
+            const offset = (currentPage - 1) * pageSize;
+            try {
+                const res = await fetch(
+                    `/api/items?limit=${pageSize}&offset=${offset}&search=${encodeURIComponent(currentSearch)}`
+                );
+                const data = await res.json();
+                render(data.items || []);
+                totalPages = data.pages || 1;
+                document.getElementById("pageInfo").textContent = `Page ${currentPage} of ${totalPages}`;
+            } catch (err) {
+                console.error("Error loading items:", err);
+            }
+        }
+
+        function render(items) {
+            const tbody = document.querySelector("tbody");
+            tbody.innerHTML = "";
+
+            if (!Array.isArray(items)) return;
+
+            items.forEach((item) => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+        <td>${item.line_number || ""}</td>
+        <td>${item.room_area || ""}</td>
+        <td>${item.quantity || ""}</td>
+        <td>${item.description || ""}</td>
+        <td>${item.unit_rcv || ""}</td>
+        <td>${item.extended_rcv || ""}</td>
+      `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById("search").addEventListener("input", (e) => {
+            currentSearch = e.target.value;
+            currentPage = 1;
+            loadItems();
+        });
+
+        document.getElementById("pageSize").addEventListener("change", (e) => {
+            pageSize = parseInt(e.target.value);
+            currentPage = 1;
+            loadItems();
+        });
+
+        document.getElementById("prevBtn").addEventListener("click", () => {
+            if (currentPage > 1) {
+                currentPage--;
+                loadItems();
+            }
+        });
+
+        document.getElementById("nextBtn").addEventListener("click", () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadItems();
+            }
+        });
+
+        loadItems();
+    </script>
+
+
 </body>
+
 </html>
