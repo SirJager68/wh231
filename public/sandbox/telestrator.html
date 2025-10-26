@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telestrator Pro Lite</title>
+<style>
+  body {
+    background: #111;
+    color: white;
+    font-family: system-ui;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+  }
+  #toolbar {
+    margin-bottom: 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  #canvas {
+    border: 2px solid #444;
+    border-radius: 10px;
+    cursor: crosshair;
+    background: #000;
+  }
+  input[type="color"] {
+    border: none;
+    background: transparent;
+  }
+  button {
+    background: #222;
+    border: 1px solid #444;
+    color: white;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #333;
+  }
+</style>
+</head>
+<body>
+
+<h2>🎯 Podcast Telestrator</h2>
+<div id="toolbar">
+  <input type="file" id="imageLoader" accept="image/*">
+  <label>Color: <input type="color" id="color" value="#ff0000"></label>
+  <label>Size: <input type="range" id="size" min="1" max="20" value="4"></label>
+  <button id="drawMode">✏️ Draw</button>
+  <button id="textMode">🔤 Text</button>
+  <button id="undo">↩️ Undo</button>
+  <button id="clearDrawings">🧹 Clear Drawings</button>
+  <button id="save">💾 Save</button>
+</div>
+
+<canvas id="canvas" width="900" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const imageLoader = document.getElementById('imageLoader');
+const colorPicker = document.getElementById('color');
+const sizePicker = document.getElementById('size');
+let mode = 'draw';
+let drawing = false;
+let img = new Image();
+
+// --- store strokes for undo ---
+let strokes = [];
+let currentStroke = [];
+
+// === Load background image ===
+imageLoader.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    img.onload = () => redraw();
+    img.src = evt.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (img.src) ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  for (const s of strokes) {
+    ctx.beginPath();
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.size;
+    ctx.lineCap = "round";
+    ctx.moveTo(s.points[0].x, s.points[0].y);
+    for (const p of s.points) ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  }
+}
+
+// === Drawing Mode ===
+canvas.addEventListener('mousedown', e => {
+  const { offsetX, offsetY } = e;
+  if (mode === 'draw') {
+    drawing = true;
+    currentStroke = { color: colorPicker.value, size: sizePicker.value, points: [{x: offsetX, y: offsetY}] };
+  } else if (mode === 'text') {
+    const text = prompt('Enter text:');
+    if (text) {
+      ctx.font = `${sizePicker.value * 3}px Arial`;
+      ctx.fillStyle = colorPicker.value;
+      ctx.fillText(text, offsetX, offsetY);
+      strokes.push({ text, x: offsetX, y: offsetY, color: colorPicker.value, size: sizePicker.value });
+    }
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (!drawing) return;
+  if (mode === 'draw') {
+    const point = { x: e.offsetX, y: e.offsetY };
+    currentStroke.points.push(point);
+    redraw();
+    ctx.beginPath();
+    ctx.strokeStyle = currentStroke.color;
+    ctx.lineWidth = currentStroke.size;
+    ctx.lineCap = "round";
+    const pts = currentStroke.points;
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (const p of pts) ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  }
+});
+
+canvas.addEventListener('mouseup', () => {
+  if (drawing && currentStroke.points.length) {
+    strokes.push(currentStroke);
+    currentStroke = [];
+  }
+  drawing = false;
+});
+
+canvas.addEventListener('mouseleave', () => drawing = false);
+
+// === Buttons ===
+document.getElementById('drawMode').onclick = () => mode = 'draw';
+document.getElementById('textMode').onclick = () => mode = 'text';
+document.getElementById('undo').onclick = () => {
+  strokes.pop();
+  redraw();
+};
+document.getElementById('clearDrawings').onclick = () => {
+  strokes = [];
+  redraw();
+};
+document.getElementById('save').onclick = () => {
+  const link = document.createElement('a');
+  link.download = 'telestrator.png';
+  link.href = canvas.toDataURL();
+  link.click();
+};
+</script>
+</body>
+</html>

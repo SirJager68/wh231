@@ -94,5 +94,11 @@ document.getElementById("nextBtn").addEventListener("click", () => {
   }
 });
 
+document.getElementById("exportBtn").addEventListener("click", () => {
+  const search = encodeURIComponent(currentSearch);
+  window.location.href = `/api/export/items?search=${search}`;
+});
+
+
 // === INIT ===
 loadItems();

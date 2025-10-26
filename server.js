@@ -96,18 +96,14 @@ app.get("/api/items", async (req, res) => {
     params.push(limit);
     params.push(offset);
     const dataSQL = `
-  SELECT 
-    i.line_number, i.room_area, i.quantity, i.description,
-    i.brand, i.model, i.unit_rcv, i.extended_rcv, i.acv_percent, i.acv,
-    i.source_link, i.notes,
-    MAX(e.edited_at) AS last_edit_date
-  FROM ${t("inventory_items")} i
-  LEFT JOIN ${t("inventory_edits")} e ON i.id = e.item_id
-  ${search ? "WHERE (... your existing filters ...)" : ""}
-  GROUP BY i.id
-  ORDER BY i.line_number ASC
-  LIMIT $${params.length - 1} OFFSET $${params.length};
-`;
+      SELECT 
+        i.line_number, i.room_area, i.quantity, i.description,
+        i.brand, i.model, i.unit_rcv, i.extended_rcv, i.acv_percent, i.acv,
+        i.source_link, i.notes, e.last_edit_date
+      ${baseSQL}
+      ORDER BY i.line_number ASC
+      LIMIT $${params.length - 1} OFFSET $${params.length};
+    `;
     const { rows } = await pool.query(dataSQL, params);
 
     const pages = Math.ceil(total / limit);
