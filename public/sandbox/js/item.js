@@ -180,21 +180,28 @@ async function loadHistory() {
 }
 
 function renderRow(field, label, value, edit) {
-    // define which fields are read-only
-    const readOnlyFields = ["extended_rcv"];
+  const readOnlyFields = ["extended_rcv"];
+  
+  const editedHTML = edit
+    ? `
+      <div class="edited">
+        ${edit.new_value || ""}
+        <small>(${edit.edited_by || "user"}, ${new Date(edit.edited_at).toLocaleDateString()})</small>
+      </div>`
+    : `<span style="color:#999;">–</span>`;
 
-    const editedHTML = edit ? `
-    <div class="edited">
-      ${edit.new_value || ""}
-      <small>(${edit.edited_by || "user"}, ${new Date(edit.edited_at).toLocaleDateString()})</small>
-    </div>` : `<span style="color:#999;">–</span>`;
+  let editCell;
+  if (readOnlyFields.includes(field)) {
+    editCell = `<span style="color:#999;">Locked</span>`;
+  } else if (field === "source_link") {
+    // ✅ Handle the link field safely — no inline string quotes
+    editCell = `<button class="edit-btn" onclick="openModal('source_link', document.querySelector('#item a')?.href || '')">Edit</button>`;
+  } else {
+    // ✅ Works fine for all normal fields
+    editCell = `<button class="edit-btn" onclick="openModal('${field}','${value ?? ''}')">Edit</button>`;
+  }
 
-    // show Locked instead of Edit button
-    const editCell = readOnlyFields.includes(field)
-        ? `<span style="color:#999;">Locked</span>`
-        : `<button class="edit-btn" onclick="openModal('${field}','${value ?? ''}')">Edit</button>`;
-
-    return `
+  return `
     <tr>
       <td><b>${label}</b></td>
       <td>${value ?? ""}</td>
@@ -202,6 +209,7 @@ function renderRow(field, label, value, edit) {
       <td>${editCell}</td>
     </tr>`;
 }
+
 
 
 function openModal(field, value) {
