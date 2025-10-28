@@ -8,15 +8,21 @@ let currentSearch = "";
 let totalPages = 1;
 
 async function loadItems() {
-    try {
-        const offset = (currentPage - 1) * pageSize;
-        const res = await fetch(`/api/items?limit=${pageSize}&offset=${offset}&search=${encodeURIComponent(currentSearch)}`);
-        const data = await res.json();
-        render(data);
-    } catch (err) {
-        console.error("Error loading items:", err);
-    }
+  try {
+    const offset = (currentPage - 1) * pageSize;
+    const status = document.getElementById("statusFilter")?.value || ""; // get selected status (if dropdown exists)
+    const search = encodeURIComponent(currentSearch || "");
+
+    const url = `/api/items?limit=${pageSize}&offset=${offset}&search=${search}&status=${status}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    render(data);
+  } catch (err) {
+    console.error("Error loading items:", err);
+  }
 }
+
 
 // === Add new item ===
 document.getElementById("addBtn").onclick = () => {
@@ -84,7 +90,7 @@ function render(data) {
     tbody.innerHTML = "";
 
     if (!data.items || data.items.length === 0) {
-        tbody.innerHTML = "<tr><td colspan='6' style='text-align:center;color:#888;'>No items found.</td></tr>";
+        tbody.innerHTML = "<tr><td colspan='7' style='text-align:center;color:#888;'>No items found.</td></tr>";
         return;
     }
 
@@ -105,6 +111,7 @@ function render(data) {
       <td>${item.description || ""} ${editTag}</td>
       <td>${formatCurrency(item.unit_rcv)}</td>
       <td>${formatCurrency(item.extended_rcv)}</td>
+      <td>${item.status || ""}</td>
     `;
 
         tr.style.cursor = "pointer";
@@ -119,6 +126,23 @@ function render(data) {
     document.getElementById("pageInfo").textContent = `Page ${data.page} of ${data.pages}`;
     document.getElementById("prevBtn").disabled = data.page <= 1;
     document.getElementById("nextBtn").disabled = data.page >= data.pages;
+}
+
+
+function renderStatusBadge(code) {
+    const num = Number(code ?? 1);
+    switch (num) {
+        case 99:
+            return `<span style="background:#d1f7c4; color:#146c2f; padding:3px 8px; border-radius:6px; font-size:12px;">✅ Complete</span>`;
+        case 50:
+            return `<span style="background:#fff3cd; color:#856404; padding:3px 8px; border-radius:6px; font-size:12px;">🕓 In Progress</span>`;
+        case 1:
+            return `<span style="background:#e3f2fd; color:#0d47a1; padding:3px 8px; border-radius:6px; font-size:12px;">📋 Open</span>`;
+        case 0:
+            return `<span style="background:#f1f1f1; color:#555; padding:3px 8px; border-radius:6px; font-size:12px;">🗃 Archived</span>`;
+        default:
+            return `<span style="background:#eee; color:#333; padding:3px 8px; border-radius:6px; font-size:12px;">Unknown</span>`;
+    }
 }
 
 
@@ -152,6 +176,11 @@ document.getElementById("nextBtn").addEventListener("click", () => {
 document.getElementById("exportBtn").addEventListener("click", () => {
     const search = encodeURIComponent(currentSearch);
     window.location.href = `/api/export/items?search=${search}`;
+});
+
+document.getElementById("statusFilter").addEventListener("change", () => {
+  currentPage = 1;
+  loadItems();
 });
 
 
