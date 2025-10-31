@@ -25,9 +25,26 @@ async function loadItems() {
         const data = await res.json();
 
         render(data);
+        await updateTotalRCV();
+
     } catch (err) {
         console.error("Error loading items:", err);
     }
+}
+
+async function updateTotalRCV() {
+  try {
+    const res = await fetch("/api/clients/1/totalrcv");
+    const data = await res.json();
+    const total = data.total_extended_rcv || 0;
+    document.getElementById("totalRCVDisplay").textContent =
+      `Total Extended RCV: $${Number(total).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`;
+  } catch (err) {
+    console.error("Error fetching total RCV:", err);
+  }
 }
 
 
