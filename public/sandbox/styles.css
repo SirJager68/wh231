@@ -1,125 +1,290 @@
-/* ================================
-   2025 Modern Updates — Contents Manager
-   ================================ */
+/* =======================================================
+   Warehouse 231 — Clean Unified Style (Light Theme)
+   ======================================================= */
 
-/* Table wrapper */
-.item-table {
+/* === Global === */
+body {
+  background: #f8f9fb;
+  color: #222;
+  font-family: Inter, Arial, sans-serif;
+  padding-bottom: 70px; /* space for sticky pager */
+  margin: 0;
+}
+
+h1 {
+  margin: 20px 0 10px;
+  color: #2a3f54;
+  font-weight: 600;
+}
+
+/* === Page wrapper === */
+.content-wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* === Topbar / Menu === */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0056d2;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.topbar h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.menu a {
+  color: white;
+  text-decoration: none;
+  margin-left: 16px;
+  font-weight: 500;
+}
+.menu a:hover {
+  text-decoration: underline;
+}
+
+/* === Toolbar === */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.toolbar input,
+.toolbar select {
+  border: 1px solid #ccc;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.toolbar button {
+  background: #0056d2;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.toolbar button:hover {
+  background: #003f9e;
+}
+
+/* === Table === */
+table {
   width: 100%;
   border-collapse: collapse;
   background: #fff;
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
 }
-
-/* Table headers */
-.item-table th {
-  background: linear-gradient(to bottom, #f9fafb, #f0f2f5);
-  color: #333;
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 0.85em;
-  letter-spacing: 0.03em;
-  padding: 10px 12px;
-  border-bottom: 1px solid #e2e5ea;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-/* Table rows */
-.item-table td {
+th,
+td {
   padding: 10px 12px;
   border-bottom: 1px solid #eee;
+  text-align: left;
+  font-size: 14px;
+}
+th {
+  background: #f3f5f7;
+  font-weight: 600;
+  color: #333;
+}
+tr {
+  transition: background 0.2s;
+}
+tr:hover {
+  background: #f0f7ff;
+  cursor: pointer;
 }
 
-.item-table tr:hover {
-  background: #f6faff;
-  transition: background 0.2s ease;
+/* === Table column layout === */
+table {
+  width: 100%;
+  table-layout: fixed; /* keeps column widths consistent */
+}
+th,
+td {
+  word-wrap: break-word;
+  white-space: normal;
 }
 
-/* Toolbar modernization */
-.toolbar {
-  background: #fff;
-  padding: 12px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+/* proportional column widths */
+th:nth-child(1),
+td:nth-child(1) {
+  width: 6%;
+  min-width: 60px;
 }
 
-.toolbar input[type="text"] {
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 0.95em;
-  width: 250px;
-  transition: border 0.2s;
-}
-.toolbar input[type="text"]:focus {
-  border-color: #0056d2;
-  outline: none;
+th:nth-child(2),
+td:nth-child(2) {
+  width: 18%;
+  min-width: 150px;
 }
 
-/* Sticky footer pager */
+th:nth-child(3),
+td:nth-child(3) {
+  width: 8%;
+  min-width: 60px;
+}
+
+th:nth-child(4),
+td:nth-child(4) {
+  width: 40%;
+  min-width: 280px;
+}
+
+th:nth-child(5),
+td:nth-child(5) {
+  width: 14%;
+  min-width: 100px;
+  text-align: right;
+}
+
+th:nth-child(6),
+td:nth-child(6) {
+  width: 14%;
+  min-width: 100px;
+  text-align: right;
+}
+
+th:nth-child(7),
+td:nth-child(7) {
+  width: 12%;
+  min-width: 100px;
+  text-align: center;
+}
+
+/* === Sticky pager === */
 .pager {
   position: fixed;
   bottom: 0;
   left: 0;
-  right: 0;
-  background: rgba(255,255,255,0.95);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(0,0,0,0.08);
+  width: 100%;
+  background: white;
+  border-top: 1px solid #ddd;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px;
-  padding: 12px;
-  box-shadow: 0 -4px 8px rgba(0,0,0,0.05);
-  z-index: 100;
+  padding: 10px;
+  gap: 12px;
+  box-shadow: 0 -1px 6px rgba(0, 0, 0, 0.05);
+  z-index: 10;
 }
 
-.pager button,
-.pager select {
-  padding: 8px 14px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  background: #fff;
-  cursor: pointer;
-  font-size: 0.9em;
-  transition: all 0.2s;
-}
-
-.pager button:hover {
+.pager button {
   background: #0056d2;
-  color: #fff;
-  border-color: #0056d2;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.pager button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 
-.pager select:focus {
-  border-color: #0056d2;
-  outline: none;
+.pager select {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 5px;
 }
 
-.pager #pageInfo {
-  font-weight: 600;
+.pager span {
+  font-size: 14px;
   color: #333;
 }
 
-/* Responsive tweaks */
-@media (max-width: 600px) {
-  .toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .pager {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .pager button,
-  .pager select {
-    flex: 1;
-  }
+/* === Edited Tag === */
+.tag-edited {
+  background: #fff4cc;
+  color: #8a5a00;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  font-weight: 500;
+  white-space: nowrap;
 }
+
+/* === Spaces Page Add / Card === */
+.add-area {
+  margin: 20px 0;
+}
+.card {
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.card img {
+  width: 100%;
+  max-width: 400px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+/* === Responsive tweaks === */
+@media (max-width: 700px) {
+  .toolbar { flex-direction: column; align-items: stretch; }
+  .pager { flex-wrap: wrap; }
+}
+
+#spacesView {
+  margin-top: 20px;
+}
+#spacesView img {
+  width: 100%;
+  max-width: 600px;
+  border-radius: 8px;
+}
+
+.marker {
+  position: absolute;
+  background: #ff3b30;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  transition: transform 0.15s;
+}
+.marker:hover {
+  transform: translate(-50%, -50%) scale(1.2);
+}
+.label-text {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.9);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #333;
+  white-space: nowrap;
+  pointer-events: none;
+}
+

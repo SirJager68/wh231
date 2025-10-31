@@ -6,28 +6,155 @@ let currentPage = 1;
 let pageSize = 25;
 let currentSearch = "";
 let totalPages = 1;
+let currentRoom = "";
+let spacesMode = false; // false = list view, true = room view
+
+
 
 async function loadItems() {
+    try {
+        const offset = (currentPage - 1) * pageSize;
+        const status = document.getElementById("statusFilter")?.value || ""; // get selected status (if dropdown exists)
+        const search = encodeURIComponent(currentSearch || "");
+
+        //const url = `/api/items?limit=${pageSize}&offset=${offset}&search=${search}&status=${status}`;
+        const room = encodeURIComponent(currentRoom || "");
+        const url = `/api/items?limit=${pageSize}&offset=${offset}&search=${search}&status=${status}&room=${room}`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        render(data);
+    } catch (err) {
+        console.error("Error loading items:", err);
+    }
+}
+
+
+// === Render Spaces Mode ===
+async function renderSpacesMode() {
+  const listContainer = document.getElementById("itemsContainer");
+  const spacesView = document.getElementById("spacesView");
+  const roomFilter = document.getElementById("roomFilter");
+
+  // 🧱 Defensive checks
+  if (!listContainer || !spacesView) {
+    console.warn("⚠️ Missing #itemsContainer or #spacesView in HTML.");
+    return;
+  }
+
+  if (!roomFilter) {
+    alert("Room selector not found on page.");
+    return;
+  }
+
+  const room = roomFilter.value;
+
+  // === Toggle back to list mode ===
+  if (!spacesMode) {
+    listContainer.style.display = "block";
+    spacesView.innerHTML = "";
+    spacesView.style.display = "none";
+    return;
+  }
+
+  // === Must select a room first ===
+  if (!room) {
+    alert("Select a room first.");
+    spacesMode = false;
+    document.getElementById("toggleSpacesMode").textContent = "🏠 Spaces Mode";
+    return;
+  }
+
   try {
-    const offset = (currentPage - 1) * pageSize;
-    const status = document.getElementById("statusFilter")?.value || ""; // get selected status (if dropdown exists)
-    const search = encodeURIComponent(currentSearch || "");
+    // === 1️⃣ Fetch room data ===
+    const res = await fetch(`/api/spaces?client_id=1`);
+    const spaces = await res.json();
+    const space = spaces.find((s) => s.space_name === room);
 
-    const url = `/api/items?limit=${pageSize}&offset=${offset}&search=${search}&status=${status}`;
-    const res = await fetch(url);
-    const data = await res.json();
+    // === 2️⃣ Fetch items for that room ===
+    const itemsRes = await fetch(`/api/items?search=${encodeURIComponent(room)}`);
+    const itemsData = await itemsRes.json();
 
-    render(data);
+    // === 3️⃣ Build image HTML ===
+    const imgHTML = space?.image_url
+      ? `<img src="${space.image_url}" alt="${room}" style="max-width:600px;border-radius:8px;margin-bottom:15px;box-shadow:0 1px 4px rgba(0,0,0,0.1);">`
+      : `<p style="color:#999;">No image available for this room.</p>`;
+
+    // === 4️⃣ Build items table HTML ===
+    const tableHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Description</th><th>Brand</th><th>Model</th><th>Qty</th><th>RCV</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsData.items
+            .map(
+              (i) => `
+              <tr>
+                <td>${i.line_number ?? ""}</td>
+                <td>${i.description ?? ""}</td>
+                <td>${i.brand ?? ""}</td>
+                <td>${i.model ?? ""}</td>
+                <td>${i.quantity ?? ""}</td>
+                <td style="text-align:right;">
+                  ${
+                    i.unit_rcv && !isNaN(i.unit_rcv)
+                      ? "$" + Number(i.unit_rcv).toFixed(2)
+                      : ""
+                  }
+                </td>
+              </tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
+    `;
+
+    // === 5️⃣ Render ===
+    listContainer.style.display = "none";
+    spacesView.innerHTML = `
+      <div class="card">
+        <h2>${room}</h2>
+        ${imgHTML}
+        ${tableHTML}
+      </div>
+    `;
+    spacesView.style.display = "block";
   } catch (err) {
-    console.error("Error loading items:", err);
+    console.error("Spaces Mode error:", err);
+    alert("Error loading room view.");
   }
 }
 
 
+
 // === Add new item ===
-document.getElementById("addBtn").onclick = () => {
-    document.getElementById("addModal").style.display = "flex";
+document.getElementById("addBtn").onclick = async () => {
+    const modal = document.getElementById("addModal");
+    const roomSelect = document.getElementById("addRoom");
+
+    try {
+        const res = await fetch("/api/spaces");
+        const rooms = await res.json();
+
+        if (!rooms.length) {
+            roomSelect.innerHTML = `<option value="">No rooms found</option>`;
+        } else {
+            roomSelect.innerHTML =
+                `<option value="">Select Room / Area</option>` +
+                rooms.map(r => `<option value="${r.space_name}">${r.space_name}</option>`).join("");
+        }
+    } catch (err) {
+        console.error("Error loading rooms:", err);
+        roomSelect.innerHTML = `<option value="">Error loading rooms</option>`;
+    }
+
+    modal.style.display = "flex";
 };
+
 function closeAdd() {
     document.getElementById("addModal").style.display = "none";
 }
@@ -145,6 +272,30 @@ function renderStatusBadge(code) {
     }
 }
 
+// === Load spaces for dropdown ===
+async function loadRooms() {
+    try {
+        const res = await fetch("/api/spaces");
+        const rooms = await res.json();
+        const select = document.getElementById("roomFilter");
+        select.innerHTML = `<option value="">All Rooms / Areas</option>` +
+            rooms.map(r => `<option value="${r.space_name}">${r.space_name}</option>`).join("");
+    } catch (err) {
+        console.error("Error loading rooms:", err);
+    }
+}
+
+// === Handle room change ===
+document.getElementById("roomFilter").addEventListener("change", e => {
+    currentRoom = e.target.value;
+    currentPage = 1;
+    loadItems();
+});
+
+// Load rooms on startup
+loadRooms();
+
+
 
 // === UI EVENT HANDLERS ===
 document.getElementById("search").addEventListener("input", e => {
@@ -173,16 +324,25 @@ document.getElementById("nextBtn").addEventListener("click", () => {
     }
 });
 
-document.getElementById("exportBtn").addEventListener("click", () => {
-    const search = encodeURIComponent(currentSearch);
-    window.location.href = `/api/export/items?search=${search}`;
-});
+// document.getElementById("exportBtn").addEventListener("click", () => {
+//     const search = encodeURIComponent(currentSearch);
+//     window.location.href = `/api/export/items?search=${search}`;
+// });
 
 document.getElementById("statusFilter").addEventListener("change", () => {
-  currentPage = 1;
-  loadItems();
+    currentPage = 1;
+    loadItems();
 });
+
+document.getElementById("toggleSpacesMode").addEventListener("click", () => {
+    spacesMode = !spacesMode;
+    const btn = document.getElementById("toggleSpacesMode");
+    btn.textContent = spacesMode ? "🧾 List Mode" : "🏠 Spaces Mode";
+    renderSpacesMode();
+});
+
 
 
 // === INIT ===
 loadItems();
+

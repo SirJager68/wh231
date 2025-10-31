@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Spaces Editor</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h2>Warehouse 231 — Contents Manager</h2>
+    <nav class="menu">
+      <a href="/sandbox/items.html">📦 Items</a>
+      <a href="/sandbox/spaces.html">🏠 Spaces</a>
+    </nav>
+  </div>
+
+  <div class="content-wrapper">
+    <h1>Spaces Editor</h1>
+
+    <div class="toolbar add-area">
+      <input id="newSpace" placeholder="Room name" />
+      <input id="newImage" placeholder="Image URL" />
+      <button id="addSpace">＋ Add / Update Space</button>
+    </div>
+
+    <div id="spacesList"></div>
+  </div>
+
+  <div class="pager" style="display:none;"></div>
+  <script src="js/spaces.js"></script>
+</body>
+</html>

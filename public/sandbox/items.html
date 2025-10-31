@@ -5,281 +5,100 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Contents Manager</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="styles.css" />
     <style>
-        body {
-            background: #f8f9fb;
-            color: #222;
-            font-family: Inter, Arial, sans-serif;
-            padding-bottom: 70px;
-            /* space for sticky pager */
-        }
 
-        h1 {
-            margin: 20px 0 10px;
-            color: #2a3f54;
-            font-weight: 600;
-        }
-
-        .content-wrapper {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: center;
-            background: white;
-            padding: 12px 16px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        }
-
-        .toolbar input,
-        .toolbar select {
-            border: 1px solid #ccc;
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .toolbar button {
-            background: #0056d2;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: 500;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: #fff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
-        }
-
-        th,
-        td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #eee;
-            text-align: left;
-            font-size: 14px;
-        }
-
-        th {
-            background: #f3f5f7;
-            font-weight: 600;
-            color: #333;
-        }
-
-        tr {
-            transition: background 0.2s;
-        }
-
-        tr:hover {
-            background: #f0f7ff;
-            cursor: pointer;
-        }
-
-        /* === Table Width & Column Stability === */
-        table {
-            width: 100%;
-            table-layout: fixed;
-            /* keeps column widths consistent */
-        }
-
-        th,
-        td {
-            word-wrap: break-word;
-            white-space: normal;
-        }
-
-        /* proportional column widths */
-        th:nth-child(1),
-        td:nth-child(1) {
-            width: 6%;
-            min-width: 60px;
-        }
-
-        th:nth-child(2),
-        td:nth-child(2) {
-            width: 18%;
-            min-width: 150px;
-        }
-
-        th:nth-child(3),
-        td:nth-child(3) {
-            width: 8%;
-            min-width: 60px;
-        }
-
-        th:nth-child(4),
-        td:nth-child(4) {
-            width: 40%;
-            min-width: 280px;
-        }
-
-        th:nth-child(5),
-        td:nth-child(5) {
-            width: 14%;
-            min-width: 100px;
-            text-align: right;
-        }
-
-        th:nth-child(6),
-        td:nth-child(6) {
-            width: 14%;
-            min-width: 100px;
-            text-align: right;
-        }
-
-        th:nth-child(7),
-        td:nth-child(7) {
-            width: 12%;
-            min-width: 100px;
-            text-align: center;
-        }
-
-
-        /* Sticky pager */
-        .pager {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: white;
-            border-top: 1px solid #ddd;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 10px;
-            gap: 12px;
-            box-shadow: 0 -1px 6px rgba(0, 0, 0, 0.05);
-            z-index: 10;
-        }
-
-        .pager button {
-            background: #0056d2;
-            color: white;
-            border: none;
-            padding: 6px 14px;
-            border-radius: 5px;
-            font-weight: 500;
-            cursor: pointer;
-        }
-
-        .pager button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        .pager select {
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            padding: 5px;
-        }
-
-        .pager span {
-            font-size: 14px;
-            color: #333;
-        }
-
-        .tag-edited {
-            background: #fff4cc;
-            color: #8a5a00;
-            font-size: 12px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 6px;
-            font-weight: 500;
-            white-space: nowrap;
-        }
     </style>
 </head>
 
 <body>
-    <div class="topbar">
-        <h2>Warehouse 231 – Contents Manager</h2>
-        <div>
-            <a href="/">Dashboard</a>
-            <a href="/items.html">Items</a>
-            <button id="exportBtn">⬇ Export CSV</button>
+<div class="topbar">
+  <h2>Warehouse 231 — Contents Manager</h2>
+  <nav class="menu">
+    <a href="/sandbox/items.html">📦 Items</a>
+    <a href="/sandbox/spaces.html">🏠 Spaces</a>
+    <button id="toggleSpacesMode">🏠 Spaces Mode</button>
 
-        </div>
+  </nav>
+</div>
+
+
+<div class="content-wrapper">
+  <h1>Inventory Items</h1>
+
+  <div class="toolbar">
+    <input id="search" type="text" placeholder="Search items..." />
+
+    <!-- 🔹 Room Filter -->
+    <select id="roomFilter">
+      <option value="">All Rooms / Areas</option>
+    </select>
+
+    <select id="statusFilter">
+      <option value="">All</option>
+      <option value="1">📋 Open</option>
+      <option value="50">🕓 In Progress</option>
+      <option value="99">✅ Complete</option>
+      <option value="0">🗃 Archived</option>
+    </select>
+
+    <div>
+      <label>Show
+        <select id="pageSize">
+          <option value="10">10</option>
+          <option value="25" selected>25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        per page
+      </label>
+      <button id="addBtn">＋ Add Item</button>
+      <button id="deleteBtn">🗑 Delete Selected</button>
+      <button onclick="window.location.reload()">⟳ Refresh</button>
     </div>
+  </div>
 
-    <div class="content-wrapper">
-        <h1>Inventory Items</h1>
+  <!-- ✅ Wrap the table in this container -->
+  <div id="itemsContainer">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Room / Area</th>
+          <th>Qty</th>
+          <th>Description</th>
+          <th>Unit RCV</th>
+          <th>Extended RCV</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
-        <div class="toolbar">
-            <input id="search" type="text" placeholder="Search items..." />
-            <select id="statusFilter">
-                <option value="">All</option>
-                <option value="1">📋 Open</option>
-                <option value="50">🕓 In Progress</option>
-                <option value="99">✅ Complete</option>
-                <option value="0">🗃 Archived</option>
-            </select>
-            <div>
-                <label>Show
-                    <select id="pageSize">
-                        <option value="10">10</option>
-                        <option value="25" selected>25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                    </select>
-                    per page
-                </label>
-                <button id="addBtn">＋ Add Item</button>
-                <button id="deleteBtn">🗑 Delete Selected</button>
-                <button onclick="window.location.reload()">⟳ Refresh</button>
-            </div>
-        </div>
+  <!-- ✅ This is for Spaces Mode view -->
+  <div id="spacesView" style="display:none;"></div>
 
-
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Room / Area</th>
-                    <th>Qty</th>
-                    <th>Description</th>
-                    <th>Unit RCV</th>
-                    <th>Extended RCV</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-
-        <div id="addModal"
-            style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); justify-content:center; align-items:center;">
-            <div style="background:#fff; padding:20px; border-radius:8px; width:400px;">
-                <h3>Add Item</h3>
-                <input id="addRoom" placeholder="Room/Area" style="width:100%; margin-bottom:6px;"><br>
-                <input id="addDesc" placeholder="Description" style="width:100%; margin-bottom:6px;"><br>
-                <input id="addQty" type="number" placeholder="Qty" style="width:100%; margin-bottom:6px;"
-                    oninput="updateExtendedRCV()"><br>
-                <input id="addUnit" type="number" placeholder="Unit RCV" style="width:100%; margin-bottom:6px;"
-                    oninput="updateExtendedRCV()"><br>
-                <input id="addExtended" type="number" placeholder="Extended RCV"
-                    style="width:100%; margin-bottom:6px; background:#f5f5f5;" readonly><br>
-                <button onclick="saveNewItem()">Save</button>
-                <button onclick="closeAdd()">Cancel</button>
-            </div>
-        </div>
-
-
+  <div id="addModal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); justify-content:center; align-items:center;">
+    <div style="background:#fff; padding:20px; border-radius:8px; width:400px;">
+      <h3>Add Item</h3>
+      <select id="addRoom" style="width:100%; margin-bottom:6px;">
+        <option value="">Loading rooms...</option>
+      </select><br>
+      <input id="addDesc" placeholder="Description" style="width:100%; margin-bottom:6px;"><br>
+      <input id="addQty" type="number" placeholder="Qty" style="width:100%; margin-bottom:6px;"
+        oninput="updateExtendedRCV()"><br>
+      <input id="addUnit" type="number" placeholder="Unit RCV" style="width:100%; margin-bottom:6px;"
+        oninput="updateExtendedRCV()"><br>
+      <input id="addExtended" type="number" placeholder="Extended RCV"
+        style="width:100%; margin-bottom:6px; background:#f5f5f5;" readonly><br>
+      <button onclick="saveNewItem()">Save</button>
+      <button onclick="closeAdd()">Cancel</button>
     </div>
+  </div>
+</div>
+
 
     <div class="pager">
         <button id="prevBtn">← Prev</button>

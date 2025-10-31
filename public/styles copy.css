@@ -1,0 +1,152 @@
+/* ================================
+   2025 Modern Updates — Contents Manager
+   ================================ */
+
+/* Table wrapper */
+.item-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+/* Table headers */
+.item-table th {
+  background: linear-gradient(to bottom, #f9fafb, #f0f2f5);
+  color: #333;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.85em;
+  letter-spacing: 0.03em;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e5ea;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* Table rows */
+.item-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.item-table tr:hover {
+  background: #f6faff;
+  transition: background 0.2s ease;
+}
+
+/* Toolbar modernization */
+.toolbar {
+  background: #fff;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+.toolbar input[type="text"] {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.95em;
+  width: 250px;
+  transition: border 0.2s;
+}
+.toolbar input[type="text"]:focus {
+  border-color: #0056d2;
+  outline: none;
+}
+
+/* Sticky footer pager */
+.pager {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(0,0,0,0.08);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  box-shadow: 0 -4px 8px rgba(0,0,0,0.05);
+  z-index: 100;
+}
+
+.pager button,
+.pager select {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.2s;
+}
+
+.pager button:hover {
+  background: #0056d2;
+  color: #fff;
+  border-color: #0056d2;
+}
+
+.pager select:focus {
+  border-color: #0056d2;
+  outline: none;
+}
+
+.pager #pageInfo {
+  font-weight: 600;
+  color: #333;
+}
+
+/* Responsive tweaks */
+@media (max-width: 600px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .pager {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .pager button,
+  .pager select {
+    flex: 1;
+  }
+}
+
+/* menu bar */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0056d2;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.topbar h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.menu a {
+  color: white;
+  text-decoration: none;
+  margin-left: 16px;
+  font-weight: 500;
+}
+.menu a:hover {
+  text-decoration: underline;
+}
+
