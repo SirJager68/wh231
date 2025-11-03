@@ -36,16 +36,37 @@ async function updateTotalRCV() {
   try {
     const res = await fetch("/api/clients/1/totalrcv");
     const data = await res.json();
-    const total = data.total_extended_rcv || 0;
-    document.getElementById("totalRCVDisplay").textContent =
-      `Total Extended RCV: $${Number(total).toLocaleString(undefined, {
+
+    const orig = Number(data.original_total || 0);
+    const edit = Number(data.edited_total || 0);
+    const diff = edit - orig;
+    const pct  = orig !== 0 ? (diff / orig) * 100 : 0;
+
+    // format helpers
+    const fmt = (v) =>
+      `$${v.toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       })}`;
+
+    let diffColor = diff >= 0 ? "green" : "red";
+    let diffText =
+      diff === 0
+        ? ""
+        : `<div style="color:${diffColor};font-size:13px;">
+             Change: ${diff >= 0 ? "+" : ""}${fmt(diff)} (${pct.toFixed(1)}%)
+           </div>`;
+
+    document.getElementById("totalRCVDisplay").innerHTML = `
+      Original Total: ${fmt(orig)}<br>
+      Edited Total: ${fmt(edit)}
+      ${diffText}
+    `;
   } catch (err) {
     console.error("Error fetching total RCV:", err);
   }
 }
+
 
 
 // === Render Spaces Mode ===

@@ -12,101 +12,105 @@
 </head>
 
 <body>
-<div class="topbar">
-  <h2>Warehouse 231 — Contents Manager</h2>
-  <nav class="menu">
-    <a href="/sandbox/items.html">📦 Items</a>
-    <a href="/sandbox/spaces.html">🏠 Spaces</a>
-    <button id="toggleSpacesMode">🏠 Spaces Mode</button>
+    <div class="topbar">
+        <h2>Warehouse 231 — Contents Manager</h2>
+        <nav class="menu">
+            <a href="/sandbox/items.html">📦 Items</a>
+            <a href="/sandbox/spaces.html">🏠 Spaces</a>
+            <button id="toggleSpacesMode">🏠 Spaces Mode</button>
 
-  </nav>
-</div>
-
-
-<div class="content-wrapper">
-  <h1>Inventory Items</h1>
-  <div id="totalRCVDisplay" 
-     style="text-align:right;
-            font-size:16px;
-            font-weight:600;
-            color:#2a3f54;
-            margin-bottom:10px;">
-  Total Extended RCV: $0.00
-</div>
-
-
-  <div class="toolbar">
-    <input id="search" type="text" placeholder="Search items..." />
-
-    <!-- 🔹 Room Filter -->
-    <select id="roomFilter">
-      <option value="">All Rooms / Areas</option>
-    </select>
-
-    <select id="statusFilter">
-      <option value="">All</option>
-      <option value="1">📋 Open</option>
-      <option value="50">🕓 In Progress</option>
-      <option value="99">✅ Complete</option>
-      <option value="0">🗃 Archived</option>
-    </select>
-
-    <div>
-      <label>Show
-        <select id="pageSize">
-          <option value="10">10</option>
-          <option value="25" selected>25</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
-        </select>
-        per page
-      </label>
-      <button id="addBtn">＋ Add Item</button>
-      <button id="deleteBtn">🗑 Delete Selected</button>
-      <button onclick="window.location.reload()">⟳ Refresh</button>
+        </nav>
     </div>
-  </div>
 
-  <!-- ✅ Wrap the table in this container -->
-  <div id="itemsContainer">
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Room / Area</th>
-          <th>Qty</th>
-          <th>Description</th>
-          <th>Unit RCV</th>
-          <th>Extended RCV</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
 
-  <!-- ✅ This is for Spaces Mode view -->
-  <div id="spacesView" style="display:none;"></div>
-
-  <div id="addModal"
-    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); justify-content:center; align-items:center;">
-    <div style="background:#fff; padding:20px; border-radius:8px; width:400px;">
-      <h3>Add Item</h3>
-      <select id="addRoom" style="width:100%; margin-bottom:6px;">
-        <option value="">Loading rooms...</option>
-      </select><br>
-      <input id="addDesc" placeholder="Description" style="width:100%; margin-bottom:6px;"><br>
-      <input id="addQty" type="number" placeholder="Qty" style="width:100%; margin-bottom:6px;"
-        oninput="updateExtendedRCV()"><br>
-      <input id="addUnit" type="number" placeholder="Unit RCV" style="width:100%; margin-bottom:6px;"
-        oninput="updateExtendedRCV()"><br>
-      <input id="addExtended" type="number" placeholder="Extended RCV"
-        style="width:100%; margin-bottom:6px; background:#f5f5f5;" readonly><br>
-      <button onclick="saveNewItem()">Save</button>
-      <button onclick="closeAdd()">Cancel</button>
+    <div class="content-wrapper">
+        <h1>Inventory Items</h1>
+    <!-- ✅ New Total Display Block -->
+    <div id="totalRCVDisplay"
+         style="text-align:right;
+                font-size:16px;
+                font-weight:600;
+                color:#2a3f54;
+                margin-bottom:10px;
+                line-height:1.4;">
+      Original Total: $0.00<br>
+      Edited Total: $0.00
     </div>
-  </div>
-</div>
+
+
+
+        <div class="toolbar">
+            <input id="search" type="text" placeholder="Search items..." />
+
+            <!-- 🔹 Room Filter -->
+            <select id="roomFilter">
+                <option value="">All Rooms / Areas</option>
+            </select>
+
+            <select id="statusFilter">
+                <option value="">All</option>
+                <option value="1">📋 Open</option>
+                <option value="50">🕓 In Progress</option>
+                <option value="99">✅ Complete</option>
+                <option value="0">🗃 Archived</option>
+            </select>
+
+            <div>
+                <label>Show
+                    <select id="pageSize">
+                        <option value="10">10</option>
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    per page
+                </label>
+                <button id="addBtn">＋ Add Item</button>
+                <button id="deleteBtn">🗑 Delete Selected</button>
+                <button onclick="window.location.reload()">⟳ Refresh</button>
+            </div>
+        </div>
+
+        <!-- ✅ Wrap the table in this container -->
+        <div id="itemsContainer">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Room / Area</th>
+                        <th>Qty</th>
+                        <th>Description</th>
+                        <th>Unit RCV</th>
+                        <th>Extended RCV</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- ✅ This is for Spaces Mode view -->
+        <div id="spacesView" style="display:none;"></div>
+
+        <div id="addModal"
+            style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); justify-content:center; align-items:center;">
+            <div style="background:#fff; padding:20px; border-radius:8px; width:400px;">
+                <h3>Add Item</h3>
+                <select id="addRoom" style="width:100%; margin-bottom:6px;">
+                    <option value="">Loading rooms...</option>
+                </select><br>
+                <input id="addDesc" placeholder="Description" style="width:100%; margin-bottom:6px;"><br>
+                <input id="addQty" type="number" placeholder="Qty" style="width:100%; margin-bottom:6px;"
+                    oninput="updateExtendedRCV()"><br>
+                <input id="addUnit" type="number" placeholder="Unit RCV" style="width:100%; margin-bottom:6px;"
+                    oninput="updateExtendedRCV()"><br>
+                <input id="addExtended" type="number" placeholder="Extended RCV"
+                    style="width:100%; margin-bottom:6px; background:#f5f5f5;" readonly><br>
+                <button onclick="saveNewItem()">Save</button>
+                <button onclick="closeAdd()">Cancel</button>
+            </div>
+        </div>
+    </div>
 
 
     <div class="pager">

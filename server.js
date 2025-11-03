@@ -153,24 +153,36 @@ app.get("/api/items", async (req, res) => {
 // ======================================================
 // Get total $ Extended RCV for a client
 // ======================================================
+// ======================================================
+// Get original and edited totals
+// ======================================================
 app.get("/api/clients/:id/totalrcv", async (req, res) => {
   try {
     const { id } = req.params;
 
     const result = await pool.query(
-      `SELECT SUM(extended_rcv) AS total_extended_rcv
-         FROM ${schema}.inventory_items
-        WHERE client_id = $1;`,   // ✅ correctly parameterized
+      `
+      SELECT 
+        SUM(unit_rcv * quantity)        AS original_total,
+        SUM(unit_rcv_edit * quantity)   AS edited_total
+      FROM ${schema}.inventory_items
+      WHERE client_id = $1;
+      `,
       [id]
     );
 
-    const total = Number(result.rows[0].total_extended_rcv || 0);
-    res.json({ client_id: id, total_extended_rcv: total });
+    const row = result.rows[0] || {};
+    res.json({
+      client_id: id,
+      original_total: Number(row.original_total || 0),
+      edited_total: Number(row.edited_total || 0)
+    });
   } catch (err) {
     console.error("GET /api/clients/:id/totalrcv error:", err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 
