@@ -116,29 +116,32 @@ app.get("/api/items", async (req, res) => {
     params.push(offset);
 
     // --- Final SELECT with both edit fields
-    const dataSQL = `
-      SELECT 
-        i.id,
-        i.line_number,
-        i.room_area,
-        i.quantity,
-        i.quantity_edit,
-        i.description,
-        i.brand,
-        i.model,
-        i.unit_rcv,
-        i.unit_rcv_edit,
-        i.extended_rcv,
-        i.acv_percent,
-        i.acv,
-        i.source_link,
-        i.notes,
-        i.status,
-        e.last_edit_date
-      ${baseSQL}
-      ORDER BY i.line_number ASC
-      LIMIT $${params.length - 1} OFFSET $${params.length};
-    `;
+const dataSQL = `
+  SELECT 
+    i.id,
+    i.line_number,
+    i.room_area,
+    i.quantity,
+    i.quantity_edit,
+    i.description,
+    i.brand,
+    i.model,
+    i.unit_rcv,
+    i.unit_rcv_edit,
+    i.extended_rcv,
+    i.extended_rcv_edit,   -- ✅ new field
+    i.acv_percent,
+    i.acv,
+    i.source_link,
+    i.notes,
+    i.status,
+    e.last_edit_date
+  ${baseSQL}
+  ORDER BY i.line_number ASC
+  LIMIT $${params.length - 1} OFFSET $${params.length};
+`;
+
+
 
     const { rows } = await pool.query(dataSQL, params);
     const pages = Math.ceil(total / limit);

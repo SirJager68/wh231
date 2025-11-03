@@ -292,7 +292,7 @@ function render(data) {
             : "";
 
         const tr = document.createElement("tr");
-        tr.innerHTML = `
+tr.innerHTML = `
   <td>${item.line_number || ""}</td>
   <td>${item.room_area || ""}</td>
   <td>${item.quantity || ""}</td>
@@ -300,12 +300,18 @@ function render(data) {
   <td>${formatCurrency(item.unit_rcv)}</td>
   <td style="font-size:13px; color:#333;">
     ${item.unit_rcv_edit && item.unit_rcv_edit !== item.unit_rcv
-                ? `<span style="color:#007bff;">${formatCurrency(item.unit_rcv_edit)}</span>`
-                : `<span style="color:#888;">${formatCurrency(item.unit_rcv_edit || item.unit_rcv)}</span>`}
+        ? `<span style="color:#007bff;">${formatCurrency(item.unit_rcv_edit)}</span>`
+        : `<span style="color:#888;">${formatCurrency(item.unit_rcv_edit || item.unit_rcv)}</span>`}
   </td>
   <td>${formatCurrency(item.extended_rcv)}</td>
+  <td style="font-size:13px; color:#333;">
+    ${item.extended_rcv_edit && item.extended_rcv_edit !== item.extended_rcv
+        ? `<span style="color:#007bff;">${formatCurrency(item.extended_rcv_edit)}</span>`
+        : `<span style="color:#888;">${formatCurrency(item.extended_rcv_edit || item.extended_rcv)}</span>`}
+  </td>
   <td>${item.status || ""}</td>
 `;
+
 
 
         tr.style.cursor = "pointer";
