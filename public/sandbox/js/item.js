@@ -70,7 +70,9 @@ async function loadItem() {
           ${renderRow("description", "Description", item.description, edits.description)}
           ${renderRow("brand", "Brand", item.brand, edits.brand)}
           ${renderRow("model", "Model", item.model, edits.model)}
-          ${renderRow("unit_rcv", "Unit RCV", formatMoney(item.unit_rcv), edits.unit_rcv)}
+          ${renderRow("unit_rcv", "Unit RCV (Original)", formatMoney(item.unit_rcv), edits.unit_rcv)}
+          ${renderRow("unit_rcv_edit", "Unit RCV (Edited)", formatMoney(item.unit_rcv_edit), edits.unit_rcv_edit)}
+
           ${renderRow("extended_rcv", "Extended RCV", formatMoney(item.extended_rcv), edits.extended_rcv)}
           ${renderRow("acv_percent", "ACV %", item.acv_percent, edits.acv_percent)}
           ${renderRow("acv", "ACV", formatMoney(item.acv), edits.acv)}
@@ -182,33 +184,29 @@ async function loadHistory() {
 }
 
 function renderRow(field, label, value, edit) {
-    const readOnlyFields = ["extended_rcv"];
+  const readOnlyFields = ["extended_rcv", "unit_rcv"]; // 👈 add unit_rcv here
 
-    const editedHTML = edit
-        ? `
+  const editedHTML = edit
+    ? `
       <div class="edited">
         ${edit.new_value || ""}
         <small>(${edit.edited_by || "user"}, ${new Date(edit.edited_at).toLocaleDateString()})</small>
       </div>`
-        : `<span style="color:#999;">–</span>`;
+    : `<span style="color:#999;">–</span>`;
 
-    let editCell;
+  let editCell;
 
-    if (readOnlyFields.includes(field)) {
-        editCell = `<span style="color:#999;">Locked</span>`;
-    }
-    else if (field === "room_area") {
-        // 👇 Only dropdown, no typing allowed
-        editCell = `<button class="edit-btn" onclick="openRoomDropdown('${field}','${value ?? ''}')">Edit</button>`;
-    }
-    else if (field === "source_link") {
-        editCell = `<button class="edit-btn" onclick="openModal('source_link', document.querySelector('#item a')?.href || '')">Edit</button>`;
-    }
-    else {
-        editCell = `<button class="edit-btn" onclick="openModal('${field}','${value ?? ''}')">Edit</button>`;
-    }
+  if (readOnlyFields.includes(field)) {
+    editCell = `<span style="color:#999;">Locked</span>`;
+  } else if (field === "room_area") {
+    editCell = `<button class="edit-btn" onclick="openRoomDropdown('${field}','${value ?? ''}')">Edit</button>`;
+  } else if (field === "source_link") {
+    editCell = `<button class="edit-btn" onclick="openModal('source_link', document.querySelector('#item a')?.href || '')">Edit</button>`;
+  } else {
+    editCell = `<button class="edit-btn" onclick="openModal('${field}','${value ?? ''}')">Edit</button>`;
+  }
 
-    return `
+  return `
     <tr>
       <td><b>${label}</b></td>
       <td>${value ?? ""}</td>
@@ -216,6 +214,7 @@ function renderRow(field, label, value, edit) {
       <td>${editCell}</td>
     </tr>`;
 }
+
 
 
 async function openRoomDropdown(field, currentValue) {

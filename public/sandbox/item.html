@@ -32,7 +32,8 @@
   </style>
 </head>
 <body>
-  <a href="items.html" class="back">← Back to list</a>
+  <a id="backLink" href="items.html" class="back">← Back to list</a>
+
   <div id="item" class="card">
   <div id="statusBar" style="margin-bottom:15px;"></div>
 </div>
@@ -60,6 +61,26 @@
       <tbody id="historyBody"><tr><td colspan="5" style="text-align:center;color:#999;">Loading...</td></tr></tbody>
     </table>
   </div>
+
+
+<script>
+  // ✅ Preserve filters and page when returning to list
+  window.addEventListener("DOMContentLoaded", () => {
+    const back = document.getElementById("backLink");
+    const params = new URLSearchParams(window.location.search);
+    const preserved = new URLSearchParams();
+
+    // keep everything except the 'line' parameter
+    ["page", "search", "room", "status"].forEach(key => {
+      if (params.has(key)) preserved.set(key, params.get(key));
+    });
+
+    // rebuild the href to include these params
+    const query = preserved.toString();
+    back.href = query ? `/sandbox/items.html?${query}` : `/sandbox/items.html`;
+  });
+</script>
+
 
   <script src="js/item.js"></script>
 </body>

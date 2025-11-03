@@ -7,7 +7,31 @@ let pageSize = 25;
 let currentSearch = "";
 let totalPages = 1;
 let currentRoom = "";
-let spacesMode = false; // false = list view, true = room view
+let spacesMode = false;
+
+// ✅ On DOM ready, restore filters and then load
+window.addEventListener("DOMContentLoaded", async () => {
+  const savedParams = new URLSearchParams(window.location.search);
+  
+  if (savedParams.has("page")) currentPage = Number(savedParams.get("page")) || 1;
+  if (savedParams.has("search")) currentSearch = savedParams.get("search") || "";
+  if (savedParams.has("room")) currentRoom = savedParams.get("room") || "";
+  if (savedParams.has("status")) {
+    const status = savedParams.get("status");
+    const sel = document.getElementById("statusFilter");
+    if (sel) sel.value = status;
+  }
+
+  // restore form field values visually
+  const s = document.getElementById("search");
+  if (s) s.value = currentSearch;
+  const r = document.getElementById("roomFilter");
+  if (r) r.value = currentRoom;
+
+  await loadRooms();
+  await loadItems();
+});
+
 
 
 
@@ -33,94 +57,94 @@ async function loadItems() {
 }
 
 async function updateTotalRCV() {
-  try {
-    const res = await fetch("/api/clients/1/totalrcv");
-    const data = await res.json();
+    try {
+        const res = await fetch("/api/clients/1/totalrcv");
+        const data = await res.json();
 
-    const orig = Number(data.original_total || 0);
-    const edit = Number(data.edited_total || 0);
-    const diff = edit - orig;
-    const pct  = orig !== 0 ? (diff / orig) * 100 : 0;
+        const orig = Number(data.original_total || 0);
+        const edit = Number(data.edited_total || 0);
+        const diff = edit - orig;
+        const pct = orig !== 0 ? (diff / orig) * 100 : 0;
 
-    // format helpers
-    const fmt = (v) =>
-      `$${v.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      })}`;
+        // format helpers
+        const fmt = (v) =>
+            `$${v.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            })}`;
 
-    let diffColor = diff >= 0 ? "green" : "red";
-    let diffText =
-      diff === 0
-        ? ""
-        : `<div style="color:${diffColor};font-size:13px;">
+        let diffColor = diff >= 0 ? "green" : "red";
+        let diffText =
+            diff === 0
+                ? ""
+                : `<div style="color:${diffColor};font-size:13px;">
              Change: ${diff >= 0 ? "+" : ""}${fmt(diff)} (${pct.toFixed(1)}%)
            </div>`;
 
-    document.getElementById("totalRCVDisplay").innerHTML = `
+        document.getElementById("totalRCVDisplay").innerHTML = `
       Original Total: ${fmt(orig)}<br>
       Edited Total: ${fmt(edit)}
       ${diffText}
     `;
-  } catch (err) {
-    console.error("Error fetching total RCV:", err);
-  }
+    } catch (err) {
+        console.error("Error fetching total RCV:", err);
+    }
 }
 
 
 
 // === Render Spaces Mode ===
 async function renderSpacesMode() {
-  const listContainer = document.getElementById("itemsContainer");
-  const spacesView = document.getElementById("spacesView");
-  const roomFilter = document.getElementById("roomFilter");
+    const listContainer = document.getElementById("itemsContainer");
+    const spacesView = document.getElementById("spacesView");
+    const roomFilter = document.getElementById("roomFilter");
 
-  // 🧱 Defensive checks
-  if (!listContainer || !spacesView) {
-    console.warn("⚠️ Missing #itemsContainer or #spacesView in HTML.");
-    return;
-  }
+    // 🧱 Defensive checks
+    if (!listContainer || !spacesView) {
+        console.warn("⚠️ Missing #itemsContainer or #spacesView in HTML.");
+        return;
+    }
 
-  if (!roomFilter) {
-    alert("Room selector not found on page.");
-    return;
-  }
+    if (!roomFilter) {
+        alert("Room selector not found on page.");
+        return;
+    }
 
-  const room = roomFilter.value;
+    const room = roomFilter.value;
 
-  // === Toggle back to list mode ===
-  if (!spacesMode) {
-    listContainer.style.display = "block";
-    spacesView.innerHTML = "";
-    spacesView.style.display = "none";
-    return;
-  }
+    // === Toggle back to list mode ===
+    if (!spacesMode) {
+        listContainer.style.display = "block";
+        spacesView.innerHTML = "";
+        spacesView.style.display = "none";
+        return;
+    }
 
-  // === Must select a room first ===
-  if (!room) {
-    alert("Select a room first.");
-    spacesMode = false;
-    document.getElementById("toggleSpacesMode").textContent = "🏠 Spaces Mode";
-    return;
-  }
+    // === Must select a room first ===
+    if (!room) {
+        alert("Select a room first.");
+        spacesMode = false;
+        document.getElementById("toggleSpacesMode").textContent = "🏠 Spaces Mode";
+        return;
+    }
 
-  try {
-    // === 1️⃣ Fetch room data ===
-    const res = await fetch(`/api/spaces?client_id=1`);
-    const spaces = await res.json();
-    const space = spaces.find((s) => s.space_name === room);
+    try {
+        // === 1️⃣ Fetch room data ===
+        const res = await fetch(`/api/spaces?client_id=1`);
+        const spaces = await res.json();
+        const space = spaces.find((s) => s.space_name === room);
 
-    // === 2️⃣ Fetch items for that room ===
-    const itemsRes = await fetch(`/api/items?search=${encodeURIComponent(room)}`);
-    const itemsData = await itemsRes.json();
+        // === 2️⃣ Fetch items for that room ===
+        const itemsRes = await fetch(`/api/items?search=${encodeURIComponent(room)}`);
+        const itemsData = await itemsRes.json();
 
-    // === 3️⃣ Build image HTML ===
-    const imgHTML = space?.image_url
-      ? `<img src="${space.image_url}" alt="${room}" style="max-width:600px;border-radius:8px;margin-bottom:15px;box-shadow:0 1px 4px rgba(0,0,0,0.1);">`
-      : `<p style="color:#999;">No image available for this room.</p>`;
+        // === 3️⃣ Build image HTML ===
+        const imgHTML = space?.image_url
+            ? `<img src="${space.image_url}" alt="${room}" style="max-width:600px;border-radius:8px;margin-bottom:15px;box-shadow:0 1px 4px rgba(0,0,0,0.1);">`
+            : `<p style="color:#999;">No image available for this room.</p>`;
 
-    // === 4️⃣ Build items table HTML ===
-    const tableHTML = `
+        // === 4️⃣ Build items table HTML ===
+        const tableHTML = `
       <table>
         <thead>
           <tr>
@@ -129,8 +153,8 @@ async function renderSpacesMode() {
         </thead>
         <tbody>
           ${itemsData.items
-            .map(
-              (i) => `
+                .map(
+                    (i) => `
               <tr>
                 <td>${i.line_number ?? ""}</td>
                 <td>${i.description ?? ""}</td>
@@ -138,33 +162,32 @@ async function renderSpacesMode() {
                 <td>${i.model ?? ""}</td>
                 <td>${i.quantity ?? ""}</td>
                 <td style="text-align:right;">
-                  ${
-                    i.unit_rcv && !isNaN(i.unit_rcv)
-                      ? "$" + Number(i.unit_rcv).toFixed(2)
-                      : ""
-                  }
+                  ${i.unit_rcv && !isNaN(i.unit_rcv)
+                            ? "$" + Number(i.unit_rcv).toFixed(2)
+                            : ""
+                        }
                 </td>
               </tr>`
-            )
-            .join("")}
+                )
+                .join("")}
         </tbody>
       </table>
     `;
 
-    // === 5️⃣ Render ===
-    listContainer.style.display = "none";
-    spacesView.innerHTML = `
+        // === 5️⃣ Render ===
+        listContainer.style.display = "none";
+        spacesView.innerHTML = `
       <div class="card">
         <h2>${room}</h2>
         ${imgHTML}
         ${tableHTML}
       </div>
     `;
-    spacesView.style.display = "block";
-  } catch (err) {
-    console.error("Spaces Mode error:", err);
-    alert("Error loading room view.");
-  }
+        spacesView.style.display = "block";
+    } catch (err) {
+        console.error("Spaces Mode error:", err);
+        alert("Error loading room view.");
+    }
 }
 
 
@@ -255,7 +278,7 @@ function render(data) {
     tbody.innerHTML = "";
 
     if (!data.items || data.items.length === 0) {
-        tbody.innerHTML = "<tr><td colspan='7' style='text-align:center;color:#888;'>No items found.</td></tr>";
+        tbody.innerHTML = "<tr><td colspan='8' style='text-align:center;color:#888;'>No items found.</td></tr>";
         return;
     }
 
@@ -270,19 +293,33 @@ function render(data) {
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
-      <td>${item.line_number || ""}</td>
-      <td>${item.room_area || ""}</td>
-      <td>${item.quantity || ""}</td>
-      <td>${item.description || ""} ${editTag}</td>
-      <td>${formatCurrency(item.unit_rcv)}</td>
-      <td>${formatCurrency(item.extended_rcv)}</td>
-      <td>${item.status || ""}</td>
-    `;
+  <td>${item.line_number || ""}</td>
+  <td>${item.room_area || ""}</td>
+  <td>${item.quantity || ""}</td>
+  <td>${item.description || ""} ${editTag}</td>
+  <td>${formatCurrency(item.unit_rcv)}</td>
+  <td style="font-size:13px; color:#333;">
+    ${item.unit_rcv_edit && item.unit_rcv_edit !== item.unit_rcv
+                ? `<span style="color:#007bff;">${formatCurrency(item.unit_rcv_edit)}</span>`
+                : `<span style="color:#888;">${formatCurrency(item.unit_rcv_edit || item.unit_rcv)}</span>`}
+  </td>
+  <td>${formatCurrency(item.extended_rcv)}</td>
+  <td>${item.status || ""}</td>
+`;
+
 
         tr.style.cursor = "pointer";
-        tr.addEventListener("click", () => {
-            window.location.href = `/sandbox/item.html?line=${item.line_number}`;
-        });
+tr.addEventListener("click", () => {
+  const params = new URLSearchParams();
+  params.set("line", item.line_number);
+  params.set("page", currentPage);
+  params.set("search", currentSearch);
+  params.set("room", currentRoom);
+  params.set("status", document.getElementById("statusFilter")?.value || "");
+  window.location.href = `/sandbox/item.html?${params.toString()}`;
+});
+
+
 
         tbody.appendChild(tr);
     });

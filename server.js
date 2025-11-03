@@ -66,23 +66,13 @@ app.get("/api/items", async (req, res) => {
   const { search, limit = 25, offset = 0, status, room } = req.query;
 
   try {
-    // --- Base FROM + JOIN block
-    let baseSQL = `
-      FROM ${t("inventory_items")} i
-      LEFT JOIN (
-        SELECT item_id, MAX(edited_at) AS last_edit_date
-        FROM ${t("inventory_edits")}
-        GROUP BY item_id
-      ) e ON i.id = e.item_id
-      WHERE 1=1
-    `;
-
     const params = [];
+    let whereSQL = "WHERE 1=1";
 
     // --- Optional search filter
     if (search) {
       params.push(`%${search}%`);
-      baseSQL += `
+      whereSQL += `
         AND (
           i.description ILIKE $${params.length} OR
           i.brand ILIKE $${params.length} OR
@@ -96,41 +86,54 @@ app.get("/api/items", async (req, res) => {
     // --- Optional status filter
     if (status) {
       params.push(status);
-      baseSQL += ` AND i.status = $${params.length}`;
+      whereSQL += ` AND i.status = $${params.length}`;
     }
 
-    // --- ✅ Optional room filter
+    // --- Optional room filter
     if (room) {
       params.push(room);
-      baseSQL += ` AND i.room_area = $${params.length}`;
+      whereSQL += ` AND i.room_area = $${params.length}`;
     }
+
+    // --- Build full base SQL (shared between count and data)
+    const baseSQL = `
+      FROM ${t("inventory_items")} i
+      LEFT JOIN (
+        SELECT item_id, MAX(edited_at) AS last_edit_date
+        FROM ${t("inventory_edits")}
+        GROUP BY item_id
+      ) e ON i.id = e.item_id
+      ${whereSQL}
+    `;
 
     // --- Get total count
     const countSQL = `SELECT COUNT(*) AS total ${baseSQL}`;
     const { rows: countRows } = await pool.query(countSQL, params);
-    const total = parseInt(countRows[0].total);
+    const total = parseInt(countRows[0].total || 0);
 
-    // --- Paging
+    // --- Add limit + offset to params
     params.push(limit);
     params.push(offset);
 
-    // --- ✅ Return id too
+    // --- Final SELECT with both edit fields
     const dataSQL = `
       SELECT 
-        i.id,                              -- ✅ added
-        i.line_number, 
-        i.room_area, 
-        i.quantity, 
+        i.id,
+        i.line_number,
+        i.room_area,
+        i.quantity,
+        i.quantity_edit,
         i.description,
-        i.brand, 
-        i.model, 
-        i.unit_rcv, 
+        i.brand,
+        i.model,
+        i.unit_rcv,
+        i.unit_rcv_edit,
         i.extended_rcv,
-        i.acv_percent, 
-        i.acv, 
-        i.source_link, 
+        i.acv_percent,
+        i.acv,
+        i.source_link,
         i.notes,
-        i.status, 
+        i.status,
         e.last_edit_date
       ${baseSQL}
       ORDER BY i.line_number ASC
@@ -138,7 +141,6 @@ app.get("/api/items", async (req, res) => {
     `;
 
     const { rows } = await pool.query(dataSQL, params);
-
     const pages = Math.ceil(total / limit);
     const page = Math.floor(offset / limit) + 1;
 
